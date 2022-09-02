@@ -19,6 +19,8 @@ class SimCLR(pl.LightningModule):
         # Base model f(.)
         self.convnet = torchvision.models.resnet18(pretrained=False,
                                                    num_classes=4*hidden_dim)  # Output of last linear layer
+
+        # Modify the architecture.
         self.convnet.conv1 = nn.Conv2d(num_channels, 64, kernel_size=(7, 7), stride=(1, 1), padding=(3, 3), bias=False)  # Change for accepting num_channels as input
         self.convnet.maxpool = nn.Identity()
 
@@ -33,7 +35,7 @@ class SimCLR(pl.LightningModule):
         optimizer = optim.AdamW(self.parameters(),
                                 lr=self.hparams.lr,
                                 weight_decay=self.hparams.weight_decay)
-        lr_scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer,
+        lr_scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer,  # TODO: Another option is to use `LinearWarmupCosineAnnealingLR` as used in the original SimCLR paper.
                                                             T_max=self.hparams.max_epochs,
                                                             eta_min=self.hparams.lr/50)
         return [optimizer], [lr_scheduler]
@@ -73,5 +75,5 @@ class SimCLR(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         return self.info_nce_loss(batch, mode='train')
 
-    def validation_step(self, batch, batch_idx):
-        self.info_nce_loss(batch, mode='val')
+    def test_step(self, batch, batch_idx):
+        self.info_nce_loss(batch, mode='crossval_test')

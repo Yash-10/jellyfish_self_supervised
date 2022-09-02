@@ -27,7 +27,7 @@ class DummyNpyFolder(DatasetFolder):  # Code adapted from https://stackoverflow.
         if loader is None:
             loader = self.__fits_loader
 
-        super(NpyFolder, self).__init__(root, loader, self.EXTENSIONS[0],  # 0th index corresponds to FITS.
+        super(DummyNpyFolder, self).__init__(root, loader, self.EXTENSIONS[0],  # 0th index corresponds to FITS.
                                          transform=transform,
                                          target_transform=target_transform)
 

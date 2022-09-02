@@ -1,13 +1,21 @@
+import os
+from copy import deepcopy
+from tqdm.notebook import tqdm
+
 import pytorch_lightning as pl
 
 # Setting the seed
 pl.seed_everything(42)
 
+import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.utils import data
 from torchvision import transforms
+
 from data.dataset_folder import NpyFolder
 
+NUM_WORKERS = os.cpu_count()
 
 class LogisticRegression(pl.LightningModule):
 
@@ -48,7 +56,7 @@ class LogisticRegression(pl.LightningModule):
         self._calculate_loss(batch, mode='test')
 
 @torch.no_grad()
-def prepare_data_features(model, dataset):
+def prepare_data_features(model, dataset, device='cpu'):
     """Given a pre-trained model, it returns the features extracted from a dataset."""
     # Prepare model
     network = deepcopy(model.convnet)
@@ -78,7 +86,7 @@ def prepare_data_features(model, dataset):
 
 def train_logreg(batch_size, train_feats_data, test_feats_data, max_epochs=100, **kwargs):
     """Trains a logistic regression model on the extracted features."""
-    # TODO: Do K-Fold cross validation instead.
+    # TODO: Do K-Fold cross validation instead: https://github.com/Lightning-AI/lightning/blob/874ae508707f135966cc1fa2c33428328547ab0a/pl_examples/loop_examples/kfold.py
     model_suffix = "jellyfish"  # Any suffix would do.
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "LogisticRegression"),
                          gpus=1 if str(device)=="cuda:0" else 0,
@@ -124,11 +132,11 @@ def test_logreg(logreg_model, test_feats_simclr):
     Returns
     -------
     preds_labels: numpy.ndarray
-        Predicted labels
+        Predicted labels of shape (num_examples,).
     preds: numpy.ndarray
-        Predicted probabilities
+        Predicted probabilities of shape (num_examples, 2).
     true_labels: numpy.ndarray
-        True labels
+        True labels of shape (num_examples,).
 
     """
     shuffled_dataset = torch.utils.data.Subset(test_feats_simclr, torch.randperm(len(test_feats_simclr)).tolist())
