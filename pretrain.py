@@ -13,6 +13,7 @@ from torch.utils import data
 import torch
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
+from pytorch_lightning.loggers import WandbLogger
 
 from self_supervised.model import SimCLR
 from data.transformations import ContrastiveTransformations
@@ -48,13 +49,14 @@ def reset_weights(m):
         if hasattr(layer, 'reset_parameters'):
             layer.reset_parameters()
 
-def train_simclr(train_loader, batch_size, max_epochs=500, save_path=None, **kwargs):
+def train_simclr(train_loader, batch_size, max_epochs=500, save_path=None, logger, **kwargs):
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, 'SimCLR'),
                          gpus=1 if str(device)=='cuda:0' else 0,
                          max_epochs=max_epochs,
                          callbacks=[LearningRateMonitor('epoch')],  # TODO: top-1 or top-5 accuracy for binary classification
-                         progress_bar_refresh_rate=1)
-    trainer.logger._default_hp_metric = None # Optional logging argument that we don't need
+                         progress_bar_refresh_rate=1,
+                         logger=wandb_logger)
+    # trainer.logger._default_hp_metric = None # Optional logging argument that we don't need
 
     pl.seed_everything(42) # To be reproducible
     model = SimCLR(max_epochs=max_epochs, **kwargs)
@@ -94,6 +96,7 @@ if __name__ == "__main__":
     parser.add_argument('--logistic_lr', type=float, default=1e-3, help='Learning rate for logistic regression training on features. Only used if to_linear_eval=True')
     parser.add_argument('--logistic_weight_decay', type=float, default=1e-3, help='Weight decay for logistic regression training on features. Only used if to_linear_eval=True')
     parser.add_argument('--logistic_batch_size', type=int, default=32, help='Batch size for logistic regression training on features. Only used if to_linear_eval=True')
+    parser.add_argument('--wandb_projectname', type=str, default='my-wandb-project', help='project name for wandb logging')
 
     opt = parser.parse_args()
 
@@ -102,6 +105,9 @@ if __name__ == "__main__":
 
     if opt.train_dir_path is None or opt.test_dir_path is None:
         raise ValueError("No train directory supplied!")
+
+    # Create a wandb logger
+    wandb_logger = WandbLogger(project=opt.wandb_projectname)
 
     train_data, test_data = prepare_data_for_pretraining(opt.train_dir_path, opt.test_dir_path)
     train_loader = torch.utils.data.DataLoader(
@@ -117,7 +123,8 @@ if __name__ == "__main__":
         temperature=opt.temperature,
         weight_decay=opt.weight_decay,
         max_epochs=opt.num_epochs,
-        save_path=opt.model_save_path
+        save_path=opt.model_save_path,
+        logger=wandb_logger
 )
 
     if opt.to_linear_eval:
