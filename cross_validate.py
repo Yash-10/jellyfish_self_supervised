@@ -3,6 +3,7 @@ import argparse
 import torch
 from sklearn.model_selection import StratifiedKFold
 
+from torch.utils import data
 from pytorch_lightning.loggers import WandbLogger
 
 from pretrain import train_simclr
@@ -36,7 +37,7 @@ def kfold_stratified_cross_validate_simclr(
     results = {}
 
     # Define the K-fold Cross Validator
-    kfold = StratifiedKFold(n_splits=k_folds, shuffle=True)
+    kfold = StratifiedKFold(n_splits=k_folds, shuffle=True, random_state=42)
 
     # ** Perform cross validation **
     # K-fold Cross Validation model evaluation
@@ -46,8 +47,8 @@ def kfold_stratified_cross_validate_simclr(
         print('--------------------------------')
 
         # Sample elements randomly from a given list of ids, no replacement.
-        train_subsampler = torch.utils.data.SubsetRandomSampler(train_ids)
-        test_subsampler = torch.utils.data.SubsetRandomSampler(test_ids)
+        train_subsampler = data.SubsetRandomSampler(train_ids)
+        test_subsampler = data.SubsetRandomSampler(test_ids)
 
         # Ensure there is no data leakage.
         assert set(train_subsampler.indices).isdisjoint(set(test_subsampler.indices)), "Data leakage while performing K-Fold cross validation!"
@@ -55,16 +56,16 @@ def kfold_stratified_cross_validate_simclr(
         print(f'No. of training examples: {len(train_subsampler.indices)}, No. of testing examples: {len(test_subsampler.indices)}')
 
         # Define data loaders for training and testing data in this fold.
-        train_loader = torch.utils.data.DataLoader(
+        train_loader = data.DataLoader(
                         training_dataset, batch_size=batch_size, sampler=train_subsampler,
                         pin_memory=True, num_workers=NUM_WORKERS)
-        test_loader = torch.utils.data.DataLoader(
+        test_loader = data.DataLoader(
                         training_dataset,
                         batch_size=batch_size, sampler=test_subsampler)
 
         # Ensure stratified split works as expected.
         print("Train loader class distribution:")
-        _stratify_works_as_expected(torch.utils.data.DataLoader(training_dataset))
+        _stratify_works_as_expected(data.DataLoader(training_dataset))
         print("[fold] train loader class distribution:")
         _stratify_works_as_expected(train_loader)
         print("[fold] test loader class distribution:")
@@ -116,6 +117,7 @@ def kfold_stratified_cross_validate_logistic_regression():
     pass
 
 if __name__ == "__main__":
+    # Around 1hr 23 min for one run.
     parser = argparse.ArgumentParser(description='sets pretraining hyperparameters for cross-validation')
     parser.add_argument('--train_dir_path', type=str, default=None, help='Path to training directory (must end as "train/")')
     parser.add_argument('--batch_size', type=int, default=64, help='batch size to use')
