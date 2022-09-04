@@ -9,7 +9,6 @@ from pretrain import train_simclr
 from self_supervised.constants import CHECKPOINT_PATH, NUM_WORKERS
 from data.dataset_folder import prepare_data_for_pretraining
 
-
 def _stratify_works_as_expected(loader):
     zero_label = 0
     one_label = 0
@@ -125,12 +124,13 @@ if __name__ == "__main__":
     parser.add_argument('--temperature', type=float, default=0.07, help='temperature')
     parser.add_argument('--weight_decay', type=float, default=1e-4, help='weight decay')
     parser.add_argument('--max_epochs', type=int, default=300, help='no. of pretraining epochs')
+    parser.add_argument('--model_save_path', type=str, default='simclr_pretrained_model_cv.pth', help='path to save the pretrained model during cross-validation')
     parser.add_argument('--wandb_projectname', type=str, default='crossval-my-wandb-project', help='project name for wandb logging')
 
     opt = parser.parse_args()
 
     # Create a wandb logger
-    wandb_logger = WandbLogger(project=opt.wandb_projectname)
+    wandb_logger = WandbLogger(name=f'{opt.batch_size}-{opt.hidden_dim}-{opt.lr}-{opt.temperature}-{opt.weight_decay}', project=opt.wandb_projectname)  # For each distinct set of hyperparameters, use a different `name`.
 
     # Prepare data.
     train_data, _ = prepare_data_for_pretraining(opt.train_dir_path, mode='cv')
@@ -139,7 +139,7 @@ if __name__ == "__main__":
     print('Starting K-Fold cross validation...')
     avg_loss = kfold_stratified_cross_validate_simclr(
         train_data, opt.batch_size, opt.hidden_dim, opt.lr, opt.temperature, opt.weight_decay,
-        k_folds=5, num_epochs=opt.max_epochs, model_save_path=None, logger=wandb_logger
+        k_folds=5, num_epochs=opt.max_epochs, model_save_path=opt.model_save_path, logger=wandb_logger
     )
 
     print(f'\n\nAverage metric value with current hyperparameters: {avg_loss}\n\n')

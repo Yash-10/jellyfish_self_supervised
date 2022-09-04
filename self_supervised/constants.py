@@ -4,4 +4,4 @@ import os
 NUM_WORKERS = os.cpu_count()
 
 # Path to the folder where the pretrained models are saved.
-CHECKPOINT_PATH = "./saved_models/"  # TODO: Add it as an argument.
+CHECKPOINT_PATH = "./saved_models/"

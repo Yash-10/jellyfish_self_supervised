@@ -8,8 +8,8 @@ from torchvision import transforms
 from torchvision.datasets import DatasetFolder
 import torch.nn.functional as F  # Note: This is different from `torchvision.transforms.functional`.
 
-from transformations import ContrastiveTransformations, CustomColorJitter
-from calculate_mean_std import DummyNpyFolder, get_mean_std
+from data.transformations import ContrastiveTransformations, CustomColorJitter
+from data.calculate_mean_std import DummyNpyFolder, get_mean_std
 
 
 class NpyFolder(DatasetFolder):
@@ -17,14 +17,13 @@ class NpyFolder(DatasetFolder):
     EXTENSIONS = ['.npy']
 
     def __init__(self, root, transform=None, target_transform=None,
-                 loader=None, normalize_mode=None):
+                 loader=None):
         if loader is None:
             loader = self.__fits_loader
 
         super(NpyFolder, self).__init__(root, loader, self.EXTENSIONS[0],  # 0th index corresponds to .npy
                                          transform=transform,
                                          target_transform=target_transform)
-        self.normalize_mode = normalize_mode
 
     @staticmethod
     def __fits_loader(filename):
@@ -93,6 +92,9 @@ def prepare_data_for_pretraining(train_dir_path, test_dir_path=None, mode='pretr
 
     # Create data
     train_data = NpyFolder(train_dir_path, transform=ContrastiveTransformations(contrast_transforms, n_views=2))  # train
-    test_data = NpyFolder(test_dir_path, transform=ContrastiveTransformations(contrast_transforms, n_views=2))  # test
+    if mode == 'pretraining':
+        test_data = NpyFolder(test_dir_path, transform=ContrastiveTransformations(contrast_transforms, n_views=2))  # test
+    else:
+        test_data = None
 
     return train_data, test_data

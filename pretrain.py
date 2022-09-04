@@ -19,8 +19,7 @@ from self_supervised.model import SimCLR
 from data.transformations import ContrastiveTransformations
 from data.dataset_folder import NpyFolder
 from data.transformations import CustomColorJitter
-from constants import NUM_WORKERS, CHECKPOINT_PATH
-from cross_validate import kfold_stratified_cross_validate_simclr
+from self_supervised.constants import NUM_WORKERS, CHECKPOINT_PATH
 from data.dataset_folder import prepare_data_for_pretraining
 
 
@@ -49,14 +48,13 @@ def reset_weights(m):
         if hasattr(layer, 'reset_parameters'):
             layer.reset_parameters()
 
-def train_simclr(train_loader, batch_size, max_epochs=500, save_path=None, logger, **kwargs):
+def train_simclr(train_loader, batch_size, max_epochs=500, save_path=None, logger=None, **kwargs):
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, 'SimCLR'),
                          gpus=1 if str(device)=='cuda:0' else 0,
                          max_epochs=max_epochs,
                          callbacks=[LearningRateMonitor('epoch')],  # TODO: top-1 or top-5 accuracy for binary classification
                          progress_bar_refresh_rate=1,
-                         logger=wandb_logger)
-    # trainer.logger._default_hp_metric = None # Optional logging argument that we don't need
+                         logger=logger)
 
     pl.seed_everything(42) # To be reproducible
     model = SimCLR(max_epochs=max_epochs, **kwargs)
@@ -107,7 +105,7 @@ if __name__ == "__main__":
         raise ValueError("No train directory supplied!")
 
     # Create a wandb logger
-    wandb_logger = WandbLogger(project=opt.wandb_projectname)
+    wandb_logger = WandbLogger(name='pretrain-simclr', project=opt.wandb_projectname)
 
     train_data, test_data = prepare_data_for_pretraining(opt.train_dir_path, opt.test_dir_path)
     train_loader = torch.utils.data.DataLoader(
