@@ -8,7 +8,7 @@ from pytorch_lightning.loggers import WandbLogger
 
 from pretrain import train_simclr
 from self_supervised.constants import CHECKPOINT_PATH, NUM_WORKERS
-from data.dataset_folder import prepare_data_for_pretraining
+from data_utils.dataset_folder import prepare_data_for_pretraining
 
 def _stratify_works_as_expected(loader):
     zero_label = 0

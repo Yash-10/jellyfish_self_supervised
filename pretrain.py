@@ -16,11 +16,11 @@ from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 
 from self_supervised.model import SimCLR
-from data.transformations import ContrastiveTransformations
-from data.dataset_folder import NpyFolder
-from data.transformations import CustomColorJitter
+from data_utils.transformations import ContrastiveTransformations
+from data_utils.dataset_folder import NpyFolder
+from data_utils.transformations import CustomColorJitter
 from self_supervised.constants import NUM_WORKERS, CHECKPOINT_PATH
-from data.dataset_folder import prepare_data_for_pretraining
+from data_utils.dataset_folder import prepare_data_for_pretraining
 
 
 # Setting the seed
