@@ -12,13 +12,20 @@ import pytorch_lightning as pl
 
 class SimCLR(pl.LightningModule):
 
-    def __init__(self, hidden_dim, lr, temperature, weight_decay, max_epochs=500, num_channels=12):
+    def __init__(self, hidden_dim, lr, temperature, weight_decay, max_epochs=500, num_channels=12, encoder='resnet18'):
         super().__init__()
         self.save_hyperparameters()
         assert self.hparams.temperature > 0.0, 'The temperature must be a positive float!'
         # Base model f(.)
-        self.convnet = torchvision.models.resnet18(pretrained=False,
-                                                   num_classes=4*hidden_dim)  # Output of last linear layer
+        if encoder == 'resnet18':
+            self.convnet = torchvision.models.resnet18(pretrained=False,
+                                                    num_classes=4*hidden_dim)  # Output of last linear layer
+        elif encoder == 'resnet34':
+            self.convnet = torchvision.models.resnet34(pretrained=False,
+                                                    num_classes=4*hidden_dim)  # Output of last linear layer
+        elif encoder == 'resnet52':
+            self.convnet = torchvision.models.resnet52(pretrained=False,
+                                                    num_classes=4*hidden_dim)  # Output of last linear layer
 
         # Modify the architecture.
         self.convnet.conv1 = nn.Conv2d(num_channels, 64, kernel_size=(7, 7), stride=(1, 1), padding=(3, 3), bias=False)  # Change for accepting num_channels as input

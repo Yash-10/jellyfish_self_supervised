@@ -34,7 +34,7 @@ device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("
 print("Device:", device)
 print("Number of workers:", NUM_WORKERS)
 
-from data.calculate_mean_std import get_mean_std, DummyNpyFolder
+from data_utils.calculate_mean_std import get_mean_std, DummyNpyFolder
 
 
 def reset_weights(m):

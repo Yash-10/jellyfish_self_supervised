@@ -1,3 +1,4 @@
+from json import encoder
 import os
 import argparse
 import torch
@@ -6,7 +7,7 @@ from sklearn.model_selection import StratifiedKFold
 from torch.utils import data
 from pytorch_lightning.loggers import WandbLogger
 
-from pretrain import train_simclr
+from pretrain import train_simclr, print_options
 from self_supervised.constants import CHECKPOINT_PATH, NUM_WORKERS
 from data_utils.dataset_folder import prepare_data_for_pretraining
 
@@ -28,7 +29,7 @@ def test_simclr(trainer, test_loader, model_path):
 
 def kfold_stratified_cross_validate_simclr(
     training_dataset, batch_size, hidden_dim, lr, temperature, weight_decay,
-    k_folds=5, num_epochs=300, model_save_path="SimCLR_pretrained.ckpt", logger=None
+    k_folds=5, num_epochs=300, model_save_path="SimCLR_pretrained.ckpt", logger=None, encoder='resnet18'
 ):
     # Set fixed random number seed
     torch.manual_seed(42)
@@ -80,7 +81,8 @@ def kfold_stratified_cross_validate_simclr(
                             weight_decay=weight_decay,
                             max_epochs=num_epochs,
                             save_path=save_path,
-                            logger=logger
+                            logger=logger,
+                            encoder=encoder
                         )
 
         # Process is complete.
@@ -126,13 +128,17 @@ if __name__ == "__main__":
     parser.add_argument('--temperature', type=float, default=0.07, help='temperature')
     parser.add_argument('--weight_decay', type=float, default=1e-4, help='weight decay')
     parser.add_argument('--max_epochs', type=int, default=300, help='no. of pretraining epochs')
+    parser.add_argument('--encoder', type=str, default='resnet18', help='encoder architecture to use.')
     parser.add_argument('--model_save_path', type=str, default='simclr_pretrained_model_cv.pth', help='path to save the pretrained model during cross-validation')
     parser.add_argument('--wandb_projectname', type=str, default='crossval-my-wandb-project', help='project name for wandb logging')
 
     opt = parser.parse_args()
 
+    # Print options
+    print_options(opt)
+
     # Create a wandb logger
-    wandb_logger = WandbLogger(name=f'{opt.batch_size}-{opt.hidden_dim}-{opt.lr}-{opt.temperature}-{opt.weight_decay}', project=opt.wandb_projectname)  # For each distinct set of hyperparameters, use a different `name`.
+    wandb_logger = WandbLogger(name=f'{opt.encoder}-{opt.batch_size}-{opt.hidden_dim}-{opt.lr}-{opt.temperature}-{opt.weight_decay}', project=opt.wandb_projectname)  # For each distinct set of hyperparameters, use a different `name`.
 
     # Prepare data.
     train_data, _ = prepare_data_for_pretraining(opt.train_dir_path, mode='cv')
@@ -141,7 +147,7 @@ if __name__ == "__main__":
     print('Starting K-Fold cross validation...')
     avg_loss = kfold_stratified_cross_validate_simclr(
         train_data, opt.batch_size, opt.hidden_dim, opt.lr, opt.temperature, opt.weight_decay,
-        k_folds=5, num_epochs=opt.max_epochs, model_save_path=opt.model_save_path, logger=wandb_logger
+        k_folds=5, num_epochs=opt.max_epochs, model_save_path=opt.model_save_path, logger=wandb_logger, encoder=opt.encoder
     )
 
     print(f'\n\nAverage metric value with current hyperparameters: {avg_loss}\n\n')
