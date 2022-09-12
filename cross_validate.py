@@ -128,7 +128,7 @@ if __name__ == "__main__":
     parser.add_argument('--temperature', type=float, default=0.07, help='temperature')
     parser.add_argument('--weight_decay', type=float, default=1e-4, help='weight decay')
     parser.add_argument('--max_epochs', type=int, default=300, help='no. of pretraining epochs')
-    parser.add_argument('--encoder', type=str, default='resnet18', help='encoder architecture to use.')
+    parser.add_argument('--encoder', type=str, default='resnet18', help='encoder architecture to use. Options: resnet18 | resnet34 | resnet52')
     parser.add_argument('--model_save_path', type=str, default='simclr_pretrained_model_cv.pth', help='path to save the pretrained model during cross-validation')
     parser.add_argument('--wandb_projectname', type=str, default='crossval-my-wandb-project', help='project name for wandb logging')
 
