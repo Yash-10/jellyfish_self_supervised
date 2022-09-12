@@ -1,3 +1,4 @@
+import wandb
 from json import encoder
 import os
 import argparse
@@ -151,3 +152,4 @@ if __name__ == "__main__":
     )
 
     print(f'\n\nAverage metric value with current hyperparameters: {avg_loss}\n\n')
+    wandb.log({"avg_cv_loss": avg_loss)
