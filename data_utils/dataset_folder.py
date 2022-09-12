@@ -8,8 +8,8 @@ from torchvision import transforms
 from torchvision.datasets import DatasetFolder
 import torch.nn.functional as F  # Note: This is different from `torchvision.transforms.functional`.
 
-from data.transformations import ContrastiveTransformations, CustomColorJitter
-from data.calculate_mean_std import DummyNpyFolder, get_mean_std
+from data_utils.transformations import ContrastiveTransformations, CustomColorJitter
+from data_utils.calculate_mean_std import DummyNpyFolder, get_mean_std
 
 
 class NpyFolder(DatasetFolder):
