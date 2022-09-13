@@ -106,7 +106,7 @@ def kfold_stratified_cross_validate_simclr(
     print(f'K-FOLD CROSS VALIDATION RESULTS FOR {k_folds} FOLDS')
     print('--------------------------------')
     sum_loss = 0.0
-    sum_ac = 0.0
+    sum_acc = 0.0
     for key, value in results.items():
         print(f'Fold {key}: {value}')
         sum_loss += value[0]
