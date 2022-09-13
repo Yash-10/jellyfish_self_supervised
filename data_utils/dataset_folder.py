@@ -65,7 +65,7 @@ def prepare_data_for_pretraining(train_dir_path, test_dir_path=None, mode='pretr
                         #     CustomGaussNoise(),                                  
                         # ], p=0.5),
                         transforms.CenterCrop(size=200),
-                        transforms.RandomResizedCrop(size=96),
+                        transforms.RandomResizedCrop(size=72),
                         transforms.RandomHorizontalFlip(),
                         transforms.RandomVerticalFlip(),
                         transforms.RandomApply([

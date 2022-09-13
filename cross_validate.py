@@ -26,7 +26,7 @@ def _stratify_works_as_expected(loader):
 
 def test_simclr(trainer, test_loader, model_path):
     cross_val_test_result = trainer.test(dataloaders=test_loader, ckpt_path=model_path)
-    return cross_val_test_result[0]["crossval_test_loss"], cross_val_test_result[0]["crossval_test__acc_top5"]
+    return cross_val_test_result[0]["crossval_test_loss"], cross_val_test_result[0]["crossval_test_acc_top5"]
 
 def kfold_stratified_cross_validate_simclr(
     training_dataset, batch_size, hidden_dim, lr, temperature, weight_decay,
