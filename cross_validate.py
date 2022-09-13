@@ -30,7 +30,7 @@ def test_simclr(trainer, test_loader, model_path):
 
 def kfold_stratified_cross_validate_simclr(
     training_dataset, batch_size, hidden_dim, lr, temperature, weight_decay,
-    k_folds=5, num_epochs=300, model_save_path="SimCLR_pretrained.ckpt", logger=None, encoder='resnet18'
+    k_folds=3, num_epochs=300, model_save_path="SimCLR_pretrained.ckpt", logger=None, encoder='resnet18'
 ):
     # Set fixed random number seed
     torch.manual_seed(42)
@@ -127,6 +127,7 @@ if __name__ == "__main__":
     # Around 1hr 23 min for one run.
     parser = argparse.ArgumentParser(description='sets pretraining hyperparameters for cross-validation')
     parser.add_argument('--train_dir_path', type=str, default=None, help='Path to training directory (must end as "train/")')
+    parser.add_argument('--k_folds', type=int, default=3, help='number of folds to create for cross validation.')
     parser.add_argument('--batch_size', type=int, default=64, help='batch size to use')
     parser.add_argument('--hidden_dim', type=int, default=128, help='hidden dimension for the MLP projection head')
     parser.add_argument('--lr', type=float, default=5e-4, help='learning rate')
@@ -152,7 +153,7 @@ if __name__ == "__main__":
     print('Starting K-Fold cross validation...')
     avg_loss, avg_top5_acc = kfold_stratified_cross_validate_simclr(
         train_data, opt.batch_size, opt.hidden_dim, opt.lr, opt.temperature, opt.weight_decay,
-        k_folds=5, num_epochs=opt.max_epochs, model_save_path=opt.model_save_path, logger=wandb_logger, encoder=opt.encoder
+        k_folds=opt.k_folds, num_epochs=opt.max_epochs, model_save_path=opt.model_save_path, logger=wandb_logger, encoder=opt.encoder
     )
 
     print(f'\n\nAverage metric value with current hyperparameters: {avg_loss}\n\n')
