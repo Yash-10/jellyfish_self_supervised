@@ -26,7 +26,7 @@ def _stratify_works_as_expected(loader):
 
 def test_simclr(trainer, test_loader, model_path):
     cross_val_test_result = trainer.test(dataloaders=test_loader, ckpt_path=model_path)
-    return cross_val_test_result[0]["crossval_test_loss"]
+    return cross_val_test_result[0]["crossval_test_loss"], cross_val_test_result[0]["crossval_test__acc_top5"]
 
 def kfold_stratified_cross_validate_simclr(
     training_dataset, batch_size, hidden_dim, lr, temperature, weight_decay,
@@ -92,12 +92,12 @@ def kfold_stratified_cross_validate_simclr(
         # Print about testing
         print('Starting testing')
 
-        result = test_simclr(trainer, test_loader, model_path=save_path)
+        avg_loss_result, avg_top5_acc_result = test_simclr(trainer, test_loader, model_path=save_path)
 
         # Print result on this fold.
-        print(f'Result on fold {fold}: {result}')
+        print(f'Result on fold {fold}: {avg_loss_result, avg_top5_acc_result}')
         print('--------------------------------')
-        results[fold] = result
+        results[fold] = [avg_loss_result, avg_top5_acc_result]
 
         # clear
         del simclr_model, trainer
@@ -105,15 +105,19 @@ def kfold_stratified_cross_validate_simclr(
     # Print fold results
     print(f'K-FOLD CROSS VALIDATION RESULTS FOR {k_folds} FOLDS')
     print('--------------------------------')
-    sum = 0.0
+    sum_loss = 0.0
+    sum_ac = 0.0
     for key, value in results.items():
         print(f'Fold {key}: {value}')
-        sum += value
+        sum_loss += value[0]
+        sum_acc += value[1]
 
-    avg_result = sum / len(results.items())
-    print(f'Average test metric over all folds: {avg_result}')
+    assert len(results.items()) == k_folds
+    avg_loss = sum_loss / k_folds
+    avg_top5_acc = sum_acc / k_folds
+    print(f'Average test metrics (loss, top5-acc) over all folds: {avg_loss, avg_top5_acc}')
 
-    return avg_result
+    return avg_loss, avg_top5_acc
 
 def kfold_stratified_cross_validate_logistic_regression():
     # TODO
@@ -146,10 +150,11 @@ if __name__ == "__main__":
 
     # K-Fold cross validation.
     print('Starting K-Fold cross validation...')
-    avg_loss = kfold_stratified_cross_validate_simclr(
+    avg_loss, avg_top5_acc = kfold_stratified_cross_validate_simclr(
         train_data, opt.batch_size, opt.hidden_dim, opt.lr, opt.temperature, opt.weight_decay,
         k_folds=5, num_epochs=opt.max_epochs, model_save_path=opt.model_save_path, logger=wandb_logger, encoder=opt.encoder
     )
 
     print(f'\n\nAverage metric value with current hyperparameters: {avg_loss}\n\n')
     wandb.log({"avg_cv_loss": avg_loss})
+    wandb.log({"avg_top5_acc": avg_top5_acc})
