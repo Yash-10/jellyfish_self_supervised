@@ -144,7 +144,7 @@ if __name__ == "__main__":
     print_options(opt)
 
     # Create a wandb logger
-    wandb_logger = WandbLogger(name=f'{opt.encoder}-{opt.batch_size}-{opt.hidden_dim}-{opt.lr}-{opt.temperature}-{opt.weight_decay}', project=opt.wandb_projectname)  # For each distinct set of hyperparameters, use a different `name`.
+    wandb_logger = WandbLogger(name=f'{opt.encoder}-{opt.batch_size}-{opt.hidden_dim}-{opt.lr}-{opt.temperature}-{opt.weight_decay}-{opt.max_epochs}', project=opt.wandb_projectname)  # For each distinct set of hyperparameters, use a different `name`.
 
     # Prepare data.
     train_data, _ = prepare_data_for_pretraining(opt.train_dir_path, mode='cv')
