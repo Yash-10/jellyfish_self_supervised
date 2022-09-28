@@ -79,6 +79,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='sets pretraining hyperparameters')
     parser.add_argument('--train_dir_path', type=str, default=None, help='Path to training directory (must end as "train/")')
     parser.add_argument('--test_dir_path', type=str, default=None, help='Path to testing directory (must end as "test/")')
+    parser.add_argument('--encoder', type=str, default='resnet34', help='encoder architecture to use. Options: resnet18 | resnet34 | resnet52')
     parser.add_argument('--batch_size', type=int, default=64, help='batch size to use')
     parser.add_argument('--hidden_dim', type=int, default=128, help='hidden dimension for the MLP projection head')
     parser.add_argument('--lr', type=float, default=5e-4, help='learning rate')
@@ -118,9 +119,10 @@ if __name__ == "__main__":
         lr=opt.lr,
         temperature=opt.temperature,
         weight_decay=opt.weight_decay,
-        max_epochs=opt.num_epochs,
+        max_epochs=opt.max_epochs,
         save_path=opt.model_save_path,
-        logger=wandb_logger
+        logger=wandb_logger,
+        encoder=opt.encoder
     )
 
     if opt.to_linear_eval:
