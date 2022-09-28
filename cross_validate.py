@@ -12,6 +12,7 @@ from pretrain import train_simclr, print_options
 from self_supervised.constants import CHECKPOINT_PATH, NUM_WORKERS
 from data_utils.dataset_folder import prepare_data_for_pretraining
 
+
 def _stratify_works_as_expected(loader):
     zero_label = 0
     one_label = 0
@@ -24,9 +25,11 @@ def _stratify_works_as_expected(loader):
 
     print(f'No. of examples with label 0: {zero_label}, with label 1: {one_label}')
 
+
 def test_simclr(trainer, test_loader, model_path):
     cross_val_test_result = trainer.test(dataloaders=test_loader, ckpt_path=model_path)
     return cross_val_test_result[0]["crossval_test_loss"], cross_val_test_result[0]["crossval_test_acc_top5"]
+
 
 def kfold_stratified_cross_validate_simclr(
     training_dataset, batch_size, hidden_dim, lr, temperature, weight_decay,
@@ -119,9 +122,11 @@ def kfold_stratified_cross_validate_simclr(
 
     return avg_loss, avg_top5_acc
 
+
 def kfold_stratified_cross_validate_logistic_regression():
     # TODO
     pass
+
 
 if __name__ == "__main__":
     # Around 1hr 23 min for one run.

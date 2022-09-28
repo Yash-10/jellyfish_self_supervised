@@ -10,6 +10,7 @@ import torchvision
 
 import pytorch_lightning as pl
 
+
 class SimCLR(pl.LightningModule):
 
     def __init__(self, hidden_dim, lr, temperature, weight_decay, max_epochs=500, num_channels=12, encoder='resnet18'):

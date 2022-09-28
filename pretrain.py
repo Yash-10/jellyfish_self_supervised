@@ -19,7 +19,7 @@ from self_supervised.model import SimCLR
 from data_utils.transformations import ContrastiveTransformations
 from data_utils.dataset_folder import NpyFolder
 from data_utils.transformations import CustomColorJitter
-from self_supervised.constants import NUM_WORKERS, CHECKPOINT_PATH
+from self_supervised.constants import NUM_WORKERS, CHECKPOINT_PATH, DEVICE
 from data_utils.dataset_folder import prepare_data_for_pretraining
 
 
@@ -29,10 +29,6 @@ pl.seed_everything(42)
 # Ensure that all operations are deterministic on GPU (if used) for reproducibility
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
-
-device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
-print("Device:", device)
-print("Number of workers:", NUM_WORKERS)
 
 from data_utils.calculate_mean_std import get_mean_std, DummyNpyFolder
 
@@ -48,9 +44,10 @@ def reset_weights(m):
         if hasattr(layer, 'reset_parameters'):
             layer.reset_parameters()
 
+
 def train_simclr(train_loader, batch_size, max_epochs=500, save_path=None, logger=None, **kwargs):
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, 'SimCLR'),
-                         gpus=1 if str(device)=='cuda:0' else 0,
+                         gpus=1 if str(DEVICE)=='cuda:0' else 0,
                          max_epochs=max_epochs,
                          callbacks=[LearningRateMonitor('epoch')],  # TODO: top-1 or top-5 accuracy for binary classification
                          progress_bar_refresh_rate=1,
@@ -68,6 +65,7 @@ def train_simclr(train_loader, batch_size, max_epochs=500, save_path=None, logge
     model = SimCLR.load_from_checkpoint(checkpoint_path=save_path)
 
     return model, trainer
+
 
 def print_options(opt):
     print('\n')
@@ -105,9 +103,9 @@ if __name__ == "__main__":
         raise ValueError("No train directory supplied!")
 
     # Create a wandb logger
-    wandb_logger = WandbLogger(name='pretrain-simclr', project=opt.wandb_projectname)
+    wandb_logger = WandbLogger(name=f'pretrain-simclr-{opt.lr}-{opt.temperature}-{opt.weight_decay}-{opt.max_epochs}', project=opt.wandb_projectname)
 
-    train_data, test_data = prepare_data_for_pretraining(opt.train_dir_path, opt.test_dir_path)
+    train_data, test_data = prepare_data_for_pretraining(opt.train_dir_path, opt.test_dir_path, mode='pretraining')
     train_loader = torch.utils.data.DataLoader(
         train_data, batch_size=opt.batch_size, pin_memory=True, num_workers=NUM_WORKERS
     )
@@ -123,40 +121,28 @@ if __name__ == "__main__":
         max_epochs=opt.num_epochs,
         save_path=opt.model_save_path,
         logger=wandb_logger
-)
+    )
 
     if opt.to_linear_eval:
-        # TODO: All below this to edit...
-        from self_supervised.linear_evaluation import LogisticRegression, prepare_data_features, train_logreg
-
-        # For linear evaluation, no transforms are used apart from normalization.
-        img_transforms = transforms.Compose([
-            transforms.Normalize(mean, std)
-        ])
+        from self_supervised.linear_evaluation import perform_linear_eval
+        from self_supervised.evaluation import print_classification_report, plot_confusion_matrix
 
         # Load pre-trained model to use as a fixed feature extractor.
         simclr_model = SimCLR(
-            hidden_dim=opt.hidden_dim, lr=opt.lr, temperature=opt.temperature, weight_decay=opt.weight_decay, max_epochs=opt.max_epochs
+            hidden_dim=opt.hidden_dim, lr=opt.lr, temperature=opt.temperature,
+            weight_decay=opt.weight_decay, max_epochs=opt.max_epochs
         )
         simclr_model.load_state_dict(torch.load(opt.model_save_path))
-        simclr_model.eval()  # For pretraining, set it to eval mode.
+        simclr_model.eval()  # Set it to eval mode.
 
-        # Note: This is the same dataset as pretraining, but with no transforms.
-        # TODO: Set seed so that same loader is used as in pretraining -- IMP.
-        train_img_data = NpyFolder('train', transform=img_transforms)  # train
-        test_img_data = NpyFolder('test', transform=img_transforms)  # test
-
-        # Extract features
-        train_feats_simclr, _ = prepare_data_features(simclr_model, train_img_data)
-        test_feats_simclr, test_batch_images = prepare_data_features(simclr_model, test_img_data)
-        feature_dim = train_feats_simclr.tensors[0].shape[1]
-
-        logreg_model, results = train_logreg(
-            batch_size=opt.logistic_batch_size,
-            train_feats_data=train_feats_simclr,
-            test_feats_data=test_feats_simclr,
-            feature_dim=feature_dim,
-            num_classes=2,  # jellyfish and non-jellyfish
-            lr=opt.logistic_lr,
-            weight_decay=opt.logistic_weight_decay  # Perform grid-search on this to find which weight decay is the best
+        logreg_model, preds_labels, preds, true_labels = perform_linear_eval(
+            opt.train_dir_path, opt.hidden_dim, opt.lr, opt.temperature, opt.weight_decay, opt.max_epochs,
+            opt.logistic_lr, opt.logistic_weight_decay, opt.logistic_batch_size, simclr_model
         )
+        print(f'Final linear evaluation results:')
+        print('Classification report:')
+        print_classification_report(true_labels, preds_labels)
+        print('Confusion matrix')
+        plot_confusion_matrix(true_labels, preds_labels)
+    elif opt.to_fine_tune:
+        pass  # TODO: Add code...

@@ -7,6 +7,8 @@ import pytorch_lightning as pl
 # Setting the seed
 pl.seed_everything(42)
 
+import numpy as np
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -14,6 +16,12 @@ from torch.utils import data
 from torchvision import transforms
 
 from data.dataset_folder import NpyFolder
+from data_utils.calculate_mean_std import DummyNpyFolder, get_mean_std
+
+from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
+from self_supervised.constants import CHECKPOINT_PATH, DEVICE
+from self_supervised.model import SimCLR
+
 
 NUM_WORKERS = os.cpu_count()
 
@@ -55,8 +63,9 @@ class LogisticRegression(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         self._calculate_loss(batch, mode='test')
 
+
 @torch.no_grad()
-def prepare_data_features(model, dataset, device='cpu'):
+def prepare_data_features(model, dataset, device=DEVICE):
     """Given a pre-trained model, it returns the features extracted from a dataset."""
     # Prepare model
     network = deepcopy(model.convnet)
@@ -84,15 +93,15 @@ def prepare_data_features(model, dataset, device='cpu'):
 
     return data.TensorDataset(feats, labels), batch_images
 
-def train_logreg(batch_size, train_feats_data, test_feats_data, max_epochs=100, **kwargs):
+
+def train_logreg(batch_size, train_feats_data, max_epochs=100, **kwargs):
     """Trains a logistic regression model on the extracted features."""
     # TODO: Do K-Fold cross validation instead: https://github.com/Lightning-AI/lightning/blob/874ae508707f135966cc1fa2c33428328547ab0a/pl_examples/loop_examples/kfold.py
     model_suffix = "jellyfish"  # Any suffix would do.
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "LogisticRegression"),
-                         gpus=1 if str(device)=="cuda:0" else 0,
+                         gpus=1 if str(DEVICE)=="cuda:0" else 0,
                          max_epochs=max_epochs,
-                         callbacks=[ModelCheckpoint(save_weights_only=True, mode='max', monitor='val_acc'),  # TODO: Use a diff monitor.
-                                    LearningRateMonitor("epoch")],
+                         callbacks=[LearningRateMonitor("epoch")],
                          progress_bar_refresh_rate=0,
                          check_val_every_n_epoch=10)
     trainer.logger._default_hp_metric = None
@@ -100,8 +109,6 @@ def train_logreg(batch_size, train_feats_data, test_feats_data, max_epochs=100, 
     # Data loaders
     train_loader = data.DataLoader(train_feats_data, batch_size=batch_size, shuffle=True,
                                    drop_last=False, pin_memory=True, num_workers=0)
-    test_loader = data.DataLoader(test_feats_data, batch_size=1, shuffle=False,
-                                  drop_last=False, pin_memory=True, num_workers=0)
 
     # Check whether pretrained model exists. If yes, load it and skip training
     pretrained_filename = os.path.join(CHECKPOINT_PATH, f"LogisticRegression_{model_suffix}.ckpt")
@@ -111,17 +118,60 @@ def train_logreg(batch_size, train_feats_data, test_feats_data, max_epochs=100, 
     else:
         pl.seed_everything(42)  # To be reproducable
         model = LogisticRegression(**kwargs)
-        trainer.fit(model, train_loader, test_loader)
+        trainer.fit(model, train_loader)
         model = LogisticRegression.load_from_checkpoint(trainer.checkpoint_callback.best_model_path)
 
     # Test best model on train and validation set
     train_result = trainer.test(model, train_loader, verbose=False)
-    test_result = trainer.test(model, test_loader, verbose=False)
-    result = {"train": train_result[0]["test_acc"], "test": test_result[0]["test_acc"]}
+    result = {"train": train_result[0]["test_acc"]}
 
     return model, result
 
-def test_logreg(logreg_model, test_feats_simclr):
+
+def perform_linear_eval(
+    train_dir_path, hidden_dim, lr, temperature, weight_decay, max_epochs,
+    logistic_lr, logistic_weight_decay, logistic_batch_size, simclr_model
+):
+    # Calculate mean and std of each channel across training dataset.
+    print('Calculating mean and standard deviation across training dataset...')
+    dataset = DummyNpyFolder(train_dir_path, transform=None)  # train
+    loader = data.DataLoader(dataset=dataset, batch_size=1, shuffle=True)
+    mean, std = get_mean_std(loader)
+
+    # For linear evaluation, no transforms are used apart from normalization.
+    img_transforms = transforms.Compose([
+        transforms.Normalize(mean, std)
+    ])
+
+    # Note: This is the same dataset as pretraining, but with no transforms.
+    # TODO: Set seed so that same loader is used as in pretraining -- IMP.
+    train_img_data = NpyFolder('train', transform=img_transforms)  # train
+
+    # Extract features
+    train_feats_simclr, _ = prepare_data_features(simclr_model, train_img_data)
+    feature_dim = train_feats_simclr.tensors[0].shape[1]
+
+    logreg_model, results = train_logreg(
+        batch_size=logistic_batch_size,
+        train_feats_data=train_feats_simclr,
+        feature_dim=feature_dim,
+        num_classes=2,  # jellyfish and non-jellyfish
+        lr=logistic_lr,
+        weight_decay=logistic_weight_decay  # Perform grid-search on this to find which weight decay is the best
+    )
+    print(f'Linear evaluation training results:\n\t{results}')
+    print('Now starting testing...')
+
+    # Testing.
+    test_img_data = NpyFolder('test', transform=img_transforms)  # test
+    test_feats_simclr, test_batch_images = prepare_data_features(simclr_model, test_img_data)
+
+    preds_labels, preds, true_labels = test_logreg(logreg_model, test_batch_images, test_feats_simclr)
+
+    return logreg_model, preds_labels, preds, true_labels
+
+
+def test_logreg(logreg_model, test_batch_images, test_feats_simclr):
     """Test the fitted logistic regression model on test features.
     
     logreg_model: LogisticRegression
@@ -142,7 +192,7 @@ def test_logreg(logreg_model, test_feats_simclr):
     shuffled_dataset = torch.utils.data.Subset(test_feats_simclr, torch.randperm(len(test_feats_simclr)).tolist())
     test_loader = data.DataLoader(shuffled_dataset, batch_size=1, num_workers=0, shuffle=False)
     
-    outputs, true_labels = [], []
+    outputs, true_labels, failed = [], [], []
     for i, (x, y) in enumerate(test_loader):
         logreg_output = logreg_model.model(x).detach().data.cpu()
 
