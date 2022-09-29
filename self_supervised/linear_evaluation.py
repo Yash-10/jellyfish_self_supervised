@@ -129,8 +129,7 @@ def train_logreg(batch_size, train_feats_data, max_epochs=100, **kwargs):
 
 
 def perform_linear_eval(
-    train_dir_path, hidden_dim, lr, temperature, weight_decay, max_epochs,
-    logistic_lr, logistic_weight_decay, logistic_batch_size, simclr_model
+    train_dir_path, logistic_lr, logistic_weight_decay, logistic_batch_size, simclr_model
 ):
     # Calculate mean and std of each channel across training dataset.
     print('Calculating mean and standard deviation across training dataset...')

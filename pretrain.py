@@ -22,6 +22,9 @@ from data_utils.transformations import CustomColorJitter
 from self_supervised.constants import NUM_WORKERS, CHECKPOINT_PATH, DEVICE
 from data_utils.dataset_folder import prepare_data_for_pretraining
 
+from self_supervised.linear_evaluation import perform_linear_eval, prepare_data_features
+from self_supervised.evaluation import print_classification_report, plot_confusion_matrix
+
 
 # Setting the seed
 pl.seed_everything(42)
@@ -125,10 +128,16 @@ if __name__ == "__main__":
         encoder=opt.encoder
     )
 
-    if opt.to_linear_eval:
-        from self_supervised.linear_evaluation import perform_linear_eval
-        from self_supervised.evaluation import print_classification_report, plot_confusion_matrix
+    train_feats_simclr, train_batch_images = prepare_data_features(simclr_model, train_data)
+    test_feats_simclr, test_batch_images = prepare_data_features(simclr_model, test_data)
 
+    # Save everything.
+    torch.save(train_feats_simclr, 'train_feats_simclr.pt')
+    torch.save(test_feats_simclr, 'test_feats_simclr.pt')
+    torch.save(train_batch_images, 'train_batch_images.pt')
+    torch.save(test_batch_images, 'test_batch_images.pt')
+
+    if opt.to_linear_eval:
         # Load pre-trained model to use as a fixed feature extractor.
         simclr_model = SimCLR(
             hidden_dim=opt.hidden_dim, lr=opt.lr, temperature=opt.temperature,
