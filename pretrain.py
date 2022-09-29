@@ -141,8 +141,8 @@ if __name__ == "__main__":
         transforms.Normalize(mean, std)
     ])
 
-    train_img_data = NpyFolder('train', transform=img_transforms)  # train
-    test_img_data = NpyFolder('test', transform=img_transforms)  # test
+    train_img_data = NpyFolder(opt.train_dir_path, transform=img_transforms)  # train
+    test_img_data = NpyFolder(opt.test_dir_path, transform=img_transforms)  # test
 
     # Extract features
     train_feats_simclr, train_batch_images = prepare_data_features(simclr_model, train_img_data)
