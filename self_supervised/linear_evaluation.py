@@ -15,7 +15,7 @@ import torch.optim as optim
 from torch.utils import data
 from torchvision import transforms
 
-from data.dataset_folder import NpyFolder
+from data_utils.dataset_folder import NpyFolder
 from data_utils.calculate_mean_std import DummyNpyFolder, get_mean_std
 
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
