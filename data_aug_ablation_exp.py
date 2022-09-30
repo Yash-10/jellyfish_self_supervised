@@ -38,7 +38,7 @@ def kfold_stratified_cross_validate_data_aug_ablation(
     train_dir_path, training_dataset, batch_size, hidden_dim, lr, temperature, weight_decay,
     logistic_lr, logistic_weight_decay, logistic_batch_size,
     k_folds=3, num_epochs_pretrain=300, num_epochs_linear_eval=100, model_save_path="SimCLR_pretrained_dataaug_exp.ckpt",
-    logger=None, encoder='resnet32'
+    logger=None, encoder='resnet34'
 ):
     # Set fixed random number seed
     torch.manual_seed(42)
