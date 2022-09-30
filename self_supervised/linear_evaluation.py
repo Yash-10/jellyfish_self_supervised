@@ -95,16 +95,15 @@ def prepare_data_features(model, dataset, device=DEVICE):
     return data.TensorDataset(feats, labels), batch_images
 
 
-def train_logreg(batch_size, train_feats_data, max_epochs=100, **kwargs):
+def train_logreg(batch_size, train_feats_data, max_epochs=100, save_path='LogisticRegression_jellyfish.ckpt', **kwargs):
     """Trains a logistic regression model on the extracted features."""
-    # TODO: Do K-Fold cross validation instead: https://github.com/Lightning-AI/lightning/blob/874ae508707f135966cc1fa2c33428328547ab0a/pl_examples/loop_examples/kfold.py
     model_suffix = "jellyfish"  # Any suffix would do.
-    trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "LogisticRegression"),
+    ckpt_path = os.path.join(CHECKPOINT_PATH, save_path)
+    trainer = pl.Trainer(default_root_dir=ckpt_path,
                          gpus=1 if str(DEVICE)=="cuda:0" else 0,
                          max_epochs=max_epochs,
                          callbacks=[LearningRateMonitor("epoch")],
-                         progress_bar_refresh_rate=0,
-                         check_val_every_n_epoch=10)
+                         progress_bar_refresh_rate=0)
     trainer.logger._default_hp_metric = None
 
     # Data loaders
@@ -120,9 +119,9 @@ def train_logreg(batch_size, train_feats_data, max_epochs=100, **kwargs):
         pl.seed_everything(42)  # To be reproducable
         model = LogisticRegression(**kwargs)
         trainer.fit(model, train_loader)
-        model = LogisticRegression.load_from_checkpoint(trainer.checkpoint_callback.best_model_path)
+        model = LogisticRegression.load_from_checkpoint(checkpoint_path=ckpt_path)
 
-    # Test best model on train and validation set
+    # Test best model on train set.
     train_result = trainer.test(model, train_loader, verbose=False)
     result = {"train": train_result[0]["test_acc"]}
 

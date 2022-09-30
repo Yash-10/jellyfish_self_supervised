@@ -5,7 +5,7 @@ import torch
 NUM_WORKERS = os.cpu_count()
 
 # Path to the folder where the pretrained models are saved.
-CHECKPOINT_PATH = "./saved_models/"
+CHECKPOINT_PATH = "saved_models/"
 
 DEVICE = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
 print("Device:", DEVICE)
