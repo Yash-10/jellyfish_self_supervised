@@ -95,11 +95,9 @@ def prepare_data_features(model, dataset, device=DEVICE):
     return data.TensorDataset(feats, labels), batch_images
 
 
-def train_logreg(batch_size, train_feats_data, max_epochs=100, save_path='LogisticRegression_jellyfish.ckpt', **kwargs):
+def train_logreg(batch_size, train_feats_data, max_epochs=100, save_path=os.path.join(CHECKPOINT_PATH, 'LogisticRegression.ckpt'), **kwargs):
     """Trains a logistic regression model on the extracted features."""
-    model_suffix = "jellyfish"  # Any suffix would do.
-    ckpt_path = os.path.join(CHECKPOINT_PATH, save_path)
-    trainer = pl.Trainer(default_root_dir=ckpt_path,
+    trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, 'LogisticRegression'),
                          gpus=1 if str(DEVICE)=="cuda:0" else 0,
                          max_epochs=max_epochs,
                          callbacks=[LearningRateMonitor("epoch")],
@@ -110,16 +108,11 @@ def train_logreg(batch_size, train_feats_data, max_epochs=100, save_path='Logist
     train_loader = data.DataLoader(train_feats_data, batch_size=batch_size, shuffle=True,
                                    drop_last=False, pin_memory=True, num_workers=0)
 
-    # Check whether pretrained model exists. If yes, load it and skip training
-    pretrained_filename = os.path.join(CHECKPOINT_PATH, f"LogisticRegression_{model_suffix}.ckpt")
-    if os.path.isfile(pretrained_filename):
-        print(f"Found pretrained model at {pretrained_filename}, loading...")
-        model = LogisticRegression.load_from_checkpoint(pretrained_filename)
-    else:
-        pl.seed_everything(42)  # To be reproducable
-        model = LogisticRegression(**kwargs)
-        trainer.fit(model, train_loader)
-        model = LogisticRegression.load_from_checkpoint(checkpoint_path=ckpt_path)
+    pl.seed_everything(42)  # To be reproducable
+    model = LogisticRegression(**kwargs)
+    trainer.fit(model, train_loader)
+    trainer.save_checkpoint(save_path)
+    model = LogisticRegression.load_from_checkpoint(checkpoint_path=save_path)
 
     # Test best model on train set.
     train_result = trainer.test(model, train_loader, verbose=False)
