@@ -34,10 +34,11 @@ def test_simclr(trainer, test_loader, model_path):
     return cross_val_test_result[0]["crossval_test_loss"], cross_val_test_result[0]["crossval_test_acc_top5"]
 
 
-def kfold_stratified_cross_validate_simclr(
+def kfold_stratified_cross_validate_data_aug_ablation(
     train_dir_path, training_dataset, batch_size, hidden_dim, lr, temperature, weight_decay,
     logistic_lr, logistic_weight_decay, logistic_batch_size,
-    k_folds=3, num_epochs=100, model_save_path="SimCLR_pretrained_dataaug_exp.ckpt", logger=None, encoder='resnet32'
+    k_folds=3, num_epochs_pretrain=300, num_epochs_linear_eval=100, model_save_path="SimCLR_pretrained_dataaug_exp.ckpt",
+    logger=None, encoder='resnet32'
 ):
     # Set fixed random number seed
     torch.manual_seed(42)
@@ -87,7 +88,7 @@ def kfold_stratified_cross_validate_simclr(
                             lr=lr,
                             temperature=temperature,
                             weight_decay=weight_decay,
-                            max_epochs=num_epochs,
+                            max_epochs=num_epochs_pretrain,
                             save_path=save_path,
                             logger=logger,
                             encoder=encoder
@@ -95,8 +96,7 @@ def kfold_stratified_cross_validate_simclr(
         simclr_model.eval()  # Set it to eval mode.
 
         _, preds_labels, _, true_labels = perform_linear_eval(
-            train_dir_path, hidden_dim, lr, temperature, weight_decay, num_epochs,
-            logistic_lr, logistic_weight_decay, logistic_batch_size, simclr_model
+            train_dir_path, logistic_lr, logistic_weight_decay, logistic_batch_size, simclr_model, num_epochs=num_epochs_linear_eval
         )
         print(f'Final linear evaluation results:')
         print('Classification report:')
@@ -138,15 +138,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='sets pretraining hyperparameters for cross-validation (data augmentation ablation experiment)')
     parser.add_argument('--train_dir_path', type=str, default=None, help='Path to training directory (must end as "train/")')
     parser.add_argument('--k_folds', type=int, default=3, help='number of folds to create for cross validation.')
-    parser.add_argument('--batch_size', type=int, default=64, help='batch size to use')
     parser.add_argument('--hidden_dim', type=int, default=128, help='hidden dimension for the MLP projection head')
-    parser.add_argument('--lr', type=float, default=5e-4, help='learning rate')
-    parser.add_argument('--temperature', type=float, default=0.07, help='temperature')
+    parser.add_argument('--lr', type=float, default=1e-4, help='learning rate')
+    parser.add_argument('--temperature', type=float, default=0.05, help='temperature')
     parser.add_argument('--weight_decay', type=float, default=1e-4, help='weight decay')
+    parser.add_argument('--batch_size', type=int, default=128, help='batch size to use')
     parser.add_argument('--logistic_lr', type=float, default=1e-4, help='learning rate for logistic regression')
     parser.add_argument('--logistic_weight_decay', type=float, default=1e-4, help='weight decay for logistic regression')
     parser.add_argument('--logistic_batch_size', type=float, default=1e-4, help='batch size for logistic regression')
-    parser.add_argument('--max_epochs', type=int, default=300, help='no. of pretraining epochs')
+    parser.add_argument('--num_epochs_pretrain', type=int, default=300, help='no. of pretraining epochs')
+    parser.add_argument('--num_epochs_linear_eval', type=int, default=100, help='no. of epochs to train logistic regression')
     parser.add_argument('--encoder', type=str, default='resnet18', help='encoder architecture to use. Options: resnet18 | resnet34 | resnet52')
     parser.add_argument('--model_save_path', type=str, default='simclr_pretrained_model_cv.pth', help='path to save the pretrained model during cross-validation')
     parser.add_argument('--wandb_projectname', type=str, default='crossval-my-wandb-project', help='project name for wandb logging')
@@ -164,11 +165,11 @@ if __name__ == "__main__":
 
     # K-Fold cross validation.
     print('Starting K-Fold cross validation...')
-    avg_precision, avg_recall, avg_f1_score = kfold_stratified_cross_validate_simclr(
+    avg_precision, avg_recall, avg_f1_score = kfold_stratified_cross_validate_data_aug_ablation(
         opt.train_dir_path, train_data, opt.batch_size, opt.hidden_dim, opt.lr, opt.temperature, opt.weight_decay,
         opt.logistic_lr, opt.logistic_weight_decay, opt.logistic_batch_size,
-        k_folds=opt.k_folds, num_epochs=opt.max_epochs, model_save_path=opt.model_save_path,
-        logger=wandb_logger, encoder=opt.encoder
+        k_folds=opt.k_folds, num_epochs_pretrain=opt.num_epochs_pretrain, num_epochs_linear_eval=opt.num_epochs_linear_eval,
+        model_save_path=opt.model_save_path, logger=wandb_logger, encoder=opt.encoder
     )
 
     print(f'\n\nAverage metric value with current hyperparameters (avg_precision, avg_recall, avg_f1_score): {avg_precision, avg_recall, avg_f1_score}\n\n')

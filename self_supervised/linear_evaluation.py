@@ -129,7 +129,7 @@ def train_logreg(batch_size, train_feats_data, max_epochs=100, **kwargs):
 
 
 def perform_linear_eval(
-    train_dir_path, logistic_lr, logistic_weight_decay, logistic_batch_size, simclr_model
+    train_dir_path, logistic_lr, logistic_weight_decay, logistic_batch_size, simclr_model, num_epochs=100
 ):
     # Calculate mean and std of each channel across training dataset.
     print('Calculating mean and standard deviation across training dataset...')
@@ -156,7 +156,8 @@ def perform_linear_eval(
         feature_dim=feature_dim,
         num_classes=2,  # jellyfish and non-jellyfish
         lr=logistic_lr,
-        weight_decay=logistic_weight_decay  # Perform grid-search on this to find which weight decay is the best
+        weight_decay=logistic_weight_decay,  # Perform grid-search on this to find which weight decay is the best
+        max_epochs=num_epochs
     )
     print(f'Linear evaluation training results:\n\t{results}')
     print('Now starting testing...')
