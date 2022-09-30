@@ -1,5 +1,6 @@
 import os
 from copy import deepcopy
+from turtle import window_height
 from tqdm.notebook import tqdm
 
 import pytorch_lightning as pl
@@ -28,11 +29,12 @@ NUM_WORKERS = os.cpu_count()
 
 class LogisticRegression(pl.LightningModule):
 
-    def __init__(self, feature_dim, num_classes, lr, weight_decay, max_epochs=100):
+    def __init__(self, feature_dim, num_classes, lr, weight_decay, max_epochs=100, weight=torch.tensor([0.3, 0.7]).to(DEVICE)):
         super().__init__()
         self.save_hyperparameters()
         # Mapping from representation h to classes
         self.model = nn.Linear(feature_dim, num_classes)
+        self.weight = weight
 
     def configure_optimizers(self):
         # optimizer = optim.SGD(self.parameters(), lr=self.hparams.lr, momentum=0.9)
@@ -48,7 +50,7 @@ class LogisticRegression(pl.LightningModule):
     def _calculate_loss(self, batch, mode='train'):
         feats, labels = batch
         preds = self.model(feats)
-        loss = F.cross_entropy(preds, labels)
+        loss = F.cross_entropy(preds, labels, weight=self.weight)
         acc = (preds.argmax(dim=-1) == labels).float().mean()
 
         self.log(mode + '_loss', loss)
@@ -126,7 +128,8 @@ def train_logreg(batch_size, train_feats_data, max_epochs=100, save_path=os.path
 
 
 def perform_linear_eval(
-    train_img_loader, test_img_loader, logistic_lr, logistic_weight_decay, logistic_batch_size, simclr_model, num_epochs=100
+    train_img_loader, test_img_loader, logistic_lr, logistic_weight_decay,
+    logistic_batch_size, simclr_model, num_epochs=100
 ):
     # Extract features
     train_feats_simclr, _ = prepare_data_features(simclr_model, train_img_loader)
