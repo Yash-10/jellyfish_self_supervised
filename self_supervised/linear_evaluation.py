@@ -14,6 +14,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils import data
 from torchvision import transforms
+import torch.nn.functional as F
 
 from data_utils.dataset_folder import NpyFolder
 from data_utils.calculate_mean_std import DummyNpyFolder, get_mean_std
@@ -144,7 +145,7 @@ def perform_linear_eval(
 
     # Note: This is the same dataset as pretraining, but with no transforms.
     # TODO: Set seed so that same loader is used as in pretraining -- IMP.
-    train_img_data = NpyFolder('train', transform=img_transforms)  # train
+    train_img_data = NpyFolder(train_dir_path, transform=img_transforms)  # train
 
     # Extract features
     train_feats_simclr, _ = prepare_data_features(simclr_model, train_img_data)
