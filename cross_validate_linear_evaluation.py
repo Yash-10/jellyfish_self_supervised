@@ -5,6 +5,7 @@ import torch
 from sklearn.model_selection import StratifiedKFold
 
 from torch.utils import data
+from torchvision import transforms
 from pytorch_lightning.loggers import WandbLogger
 
 from pretrain import train_simclr, print_options
@@ -15,6 +16,8 @@ from self_supervised.evaluation import (
 )
 from self_supervised.model import SimCLR
 from data_utils.dataset_folder import prepare_data_for_pretraining
+from data_utils.dataset_folder import NpyFolder
+from data_utils.calculate_mean_std import DummyNpyFolder, get_mean_std
 
 
 def _stratify_works_as_expected(loader):
@@ -36,7 +39,7 @@ def test_simclr(trainer, test_loader, model_path):
 
 
 def kfold_stratified_cross_validate_linear_evaluation(  # train_dir_path is only taken as input to calculate the mean and standard deviation for normalizing.
-    simclr_model, train_dir_path, training_dataset, logistic_lr, logistic_weight_decay, logistic_batch_size,
+    simclr_model, training_dataset, logistic_lr, logistic_weight_decay, logistic_batch_size,
     k_folds=3, num_epochs=100, logger=None
 ):
     # Set fixed random number seed
@@ -82,7 +85,7 @@ def kfold_stratified_cross_validate_linear_evaluation(  # train_dir_path is only
 
         simclr_model.eval()  # Set it to eval mode.
         _, preds_labels, _, true_labels = perform_linear_eval(
-            train_dir_path, logistic_lr, logistic_weight_decay, logistic_batch_size, simclr_model, num_epochs=num_epochs
+            train_loader, test_loader, logistic_lr, logistic_weight_decay, logistic_batch_size, simclr_model, num_epochs=num_epochs
         )
 
         print(f'Final linear evaluation results:')
@@ -141,7 +144,20 @@ if __name__ == "__main__":
     wandb_logger = WandbLogger(name=f'linear_eval-{opt.logistic_batch_size}-{opt.logistic_weight_decay}-{opt.logistic_lr}-{opt.num_epochs_linear_eval}', project=opt.wandb_projectname)  # For each distinct set of hyperparameters, use a different `name`.
 
     # Prepare data.
-    train_data, _ = prepare_data_for_pretraining(opt.train_dir_path, mode='cv')
+    # train_data, _ = prepare_data_for_pretraining(opt.train_dir_path, mode='cv')
+    # Calculate mean and std of each channel across training dataset.
+    print('Calculating mean and standard deviation across training dataset...')
+    dataset = DummyNpyFolder(opt.train_dir_path, transform=None)  # train
+    loader = data.DataLoader(dataset=dataset, batch_size=1, shuffle=True)
+    mean, std = get_mean_std(loader)
+
+    # For linear evaluation, no transforms are used apart from normalization.
+    img_transforms = transforms.Compose([
+        transforms.Normalize(mean, std)
+    ])
+
+    # Note: This is the same dataset as pretraining, but with no transforms.
+    train_img_data = NpyFolder(opt.train_dir_path, transform=img_transforms)  # train
 
     # K-Fold cross validation.
     print('Starting K-Fold cross validation...')
@@ -154,7 +170,7 @@ if __name__ == "__main__":
     simclr_model.eval()  # Set it to eval mode.
 
     avg_precision, avg_recall, avg_f1_score = kfold_stratified_cross_validate_linear_evaluation(
-        simclr_model=simclr_model, train_dir_path=opt.train_dir_path, training_dataset=train_data,
+        simclr_model=simclr_model, training_dataset=train_img_data,
         logistic_lr=opt.logistic_lr, logistic_weight_decay=opt.logistic_weight_decay, logistic_batch_size=opt.logistic_batch_size,
         k_folds=opt.k_folds, num_epochs=opt.num_epochs_linear_eval, logger=wandb_logger
     )

@@ -75,7 +75,11 @@ def prepare_data_features(model, dataset, device=DEVICE):
     network.to(device)
 
     # Encode all images
-    data_loader = data.DataLoader(dataset, batch_size=64, num_workers=NUM_WORKERS, shuffle=False, drop_last=False)
+    if isinstance(dataset, data.Dataset):
+        data_loader = data.DataLoader(dataset, batch_size=64, num_workers=NUM_WORKERS, shuffle=False, drop_last=False)
+    else:  # Assume already a dataloader
+        data_loader = dataset
+
     feats, labels, batch_images = [], [], []
     for batch_imgs, batch_labels in tqdm(data_loader):
         batch_imgs = batch_imgs.to(device)
@@ -122,25 +126,10 @@ def train_logreg(batch_size, train_feats_data, max_epochs=100, save_path=os.path
 
 
 def perform_linear_eval(
-    train_dir_path, logistic_lr, logistic_weight_decay, logistic_batch_size, simclr_model, num_epochs=100
+    train_img_loader, test_img_loader, logistic_lr, logistic_weight_decay, logistic_batch_size, simclr_model, num_epochs=100
 ):
-    # Calculate mean and std of each channel across training dataset.
-    print('Calculating mean and standard deviation across training dataset...')
-    dataset = DummyNpyFolder(train_dir_path, transform=None)  # train
-    loader = data.DataLoader(dataset=dataset, batch_size=1, shuffle=True)
-    mean, std = get_mean_std(loader)
-
-    # For linear evaluation, no transforms are used apart from normalization.
-    img_transforms = transforms.Compose([
-        transforms.Normalize(mean, std)
-    ])
-
-    # Note: This is the same dataset as pretraining, but with no transforms.
-    # TODO: Set seed so that same loader is used as in pretraining -- IMP.
-    train_img_data = NpyFolder(train_dir_path, transform=img_transforms)  # train
-
     # Extract features
-    train_feats_simclr, _ = prepare_data_features(simclr_model, train_img_data)
+    train_feats_simclr, _ = prepare_data_features(simclr_model, train_img_loader)
     feature_dim = train_feats_simclr.tensors[0].shape[1]
 
     logreg_model, results = train_logreg(
@@ -156,9 +145,7 @@ def perform_linear_eval(
     print('Now starting testing...')
 
     # Testing.
-    test_img_data = NpyFolder('test', transform=img_transforms)  # test
-    test_feats_simclr, test_batch_images = prepare_data_features(simclr_model, test_img_data)
-
+    test_feats_simclr, test_batch_images = prepare_data_features(simclr_model, test_img_loader)
     preds_labels, preds, true_labels = test_logreg(logreg_model, test_batch_images, test_feats_simclr)
 
     return logreg_model, preds_labels, preds, true_labels
