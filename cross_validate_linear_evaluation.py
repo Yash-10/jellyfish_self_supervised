@@ -150,7 +150,7 @@ if __name__ == "__main__":
         hidden_dim=128, lr=1e-4, temperature=0.05,
         weight_decay=1e-4, max_epochs=1000, encoder='resnet34'
     )
-    simclr_model.load_state_dict(torch.load(opt.model_load_path))
+    simclr_model.load_from_checkpoint(opt.model_load_path)
     simclr_model.eval()  # Set it to eval mode.
 
     avg_precision, avg_recall, avg_f1_score = kfold_stratified_cross_validate_linear_evaluation(
