@@ -8,14 +8,13 @@ from torch.utils import data
 from torchvision import transforms
 from pytorch_lightning.loggers import WandbLogger
 
-from pretrain import train_simclr, print_options
+from pretrain import print_options, reset_weights
 from self_supervised.constants import CHECKPOINT_PATH, NUM_WORKERS
 from self_supervised.linear_evaluation import perform_linear_eval
 from self_supervised.evaluation import (
     print_classification_report, plot_confusion_matrix, precisionRecallFscoreSupport
 )
 from self_supervised.model import SimCLR
-from data_utils.dataset_folder import prepare_data_for_pretraining
 from data_utils.dataset_folder import NpyFolder
 from data_utils.calculate_mean_std import DummyNpyFolder, get_mean_std
 
@@ -101,7 +100,7 @@ def kfold_stratified_cross_validate_linear_evaluation(  # train_dir_path is only
         results[fold] = [precision, recall, f1_score, support]
 
         # clear
-        del simclr_model
+        simclr_model.apply(reset_weights)
 
     # Print fold results
     print(f'K-FOLD CROSS VALIDATION RESULTS FOR {k_folds} FOLDS')
