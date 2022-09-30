@@ -127,7 +127,7 @@ if __name__ == "__main__":
     parser.add_argument('--k_folds', type=int, default=3, help='number of folds to create for cross validation.')
     parser.add_argument('--logistic_lr', type=float, default=1e-4, help='learning rate for logistic regression')
     parser.add_argument('--logistic_weight_decay', type=float, default=1e-4, help='weight decay for logistic regression')
-    parser.add_argument('--logistic_batch_size', type=float, default=16, help='batch size for logistic regression')
+    parser.add_argument('--logistic_batch_size', type=int, default=16, help='batch size for logistic regression')
     parser.add_argument('--num_epochs_linear_eval', type=int, default=100, help='no. of epochs to train logistic regression')
     parser.add_argument('--model_load_path', type=str, default='simclr_pretrained.pth', help='path from which to load the pretrained simclr model for cross-validation')
     parser.add_argument('--wandb_projectname', type=str, default='crossval-my-wandb-project', help='project name for wandb logging')
