@@ -101,7 +101,7 @@ def kfold_stratified_cross_validate_linear_evaluation(  # train_dir_path is only
         results[fold] = [precision, recall, f1_score, support]
 
         # clear
-        del simclr_model, trainer
+        del simclr_model
 
     # Print fold results
     print(f'K-FOLD CROSS VALIDATION RESULTS FOR {k_folds} FOLDS')
