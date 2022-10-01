@@ -14,7 +14,7 @@ logistic_lr=1e-3
 logistic_batch_size=8
 
 print('Calculating mean and standard deviation across training dataset...')
-dataset = DummyNpyFolder('/content/jellyfish_self_supervised/train', transform=None)  # train
+dataset = DummyNpyFolder('/content/train', transform=None)  # train
 loader = data.DataLoader(dataset=dataset, batch_size=1, shuffle=True)
 mean, std = get_mean_std(loader)
 
@@ -29,8 +29,8 @@ simclr_model = SimCLR(
 simclr_model.load_from_checkpoint('/content/drive/MyDrive/simclr_pretrained_1000epochs.pth')
 simclr_model.eval()  # Set it to eval mode.
 
-train_img_data = NpyFolder('/content/jellyfish_self_supervised/train', transform=img_transforms)  # train
-test_img_data = NpyFolder('/content/jellyfish_self_supervised/test', transform=img_transforms)  # test
+train_img_data = NpyFolder('/content/train', transform=img_transforms)  # train
+test_img_data = NpyFolder('/content/test', transform=img_transforms)  # test
 
 # train_feats_simclr, _ = prepare_data_features(simclr_model, train_img_data)
 # test_feats_simclr, test_batch_images = prepare_data_features(simclr_model, test_img_data)4
