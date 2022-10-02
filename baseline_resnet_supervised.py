@@ -64,7 +64,7 @@ class ResNet(pl.LightningModule):
         return self._calculate_loss(batch, mode='train')
 
     def test_step(self, batch, batch_idx):
-        self._calculate_loss(batch, mode='test')
+        self._calculate_loss(batch, mode='crossval_test')
 
 
 def train_resnet(batch_size, max_epochs=100, **kwargs):
@@ -149,8 +149,6 @@ def kfold_stratified_cross_validate_simclr(
         # Print about testing
         print('Starting testing')
 
-        test_loader = data.DataLoader(test_img_data, batch_size=opt.batch_size, shuffle=False,
-                                  drop_last=False, pin_memory=True, num_workers=NUM_WORKERS)
         cross_val_test_result = trainer.test(resnet_model, test_loader, verbose=False)
         loss, acc, prec, recall, f1_score = cross_val_test_result[0]["crossval_test_loss"], cross_val_test_result[0]["crossval_test_acc"], cross_val_test_result[0]["crossval_test_prec"], cross_val_test_result[0]["crossval_test_recall"], cross_val_test_result[0]["crossval_test_f1_score"]
 
@@ -229,7 +227,7 @@ if __name__ == "__main__":
 
     avg_loss, avg_acc, avg_prec, avg_recall, avg_f1_score = kfold_stratified_cross_validate_simclr(
         train_img_data, opt.batch_size, opt.lr, opt.weight_decay,
-        k_folds=3, num_epochs=100, model_save_path="Resnet_supervised.ckpt", logger=None
+        k_folds=3, num_epochs=opt.max_epochs, model_save_path="Resnet_supervised.ckpt", logger=None
     )
     wandb.log({"avg_loss": avg_loss})
     wandb.log({"avg_acc": avg_acc})
