@@ -48,13 +48,13 @@ class ResNet(pl.LightningModule):
     def _calculate_loss(self, batch, mode='train'):
         imgs, labels = batch
         preds = self.model(imgs)
-        loss = F.cross_entropy(preds, labels, weight=self.weight)
+        loss = F.cross_entropy(preds, labels, weight=self.weight if mode == 'train' else None)
         acc = (preds.argmax(dim=-1) == labels).float().mean()
 
         self.log(mode + '_loss', loss)
         self.log(mode + '_acc', acc)
         preds_labels = torch.argmax(preds, axis=-1)
-        prec, recall, f1, _ = precisionRecallFscoreSupport(labels.numpy(), preds_labels.numpy())
+        prec, recall, f1, _ = precisionRecallFscoreSupport(labels.cpu().numpy(), preds_labels.cpu().numpy())
         self.log(mode + '_prec', prec)
         self.log(mode + '_recall', recall)
         self.log(mode + '_f1_score', f1)
@@ -92,7 +92,7 @@ def train_resnet(batch_size, max_epochs=100, **kwargs):
     return model, trainer, result
 
 
-def kfold_stratified_cross_validate_simclr(
+def kfold_stratified_cross_validate_supervised_resnet(
     training_dataset, batch_size, lr, weight_decay,
     k_folds=3, num_epochs=100, model_save_path="Resnet_supervised.ckpt", logger=None
 ):
@@ -128,6 +128,11 @@ def kfold_stratified_cross_validate_simclr(
         test_loader = data.DataLoader(
                         training_dataset,
                         batch_size=batch_size, sampler=test_subsampler, shuffle=False)
+
+        test_loader.dataset.transform = transforms.Compose([
+                            transforms.CenterCrop(size=200),
+                            transforms.Normalize(mean=mean, std=std)
+        ])
 
         # Ensure stratified split works as expected.
         print("Train loader class distribution:")
@@ -225,9 +230,9 @@ if __name__ == "__main__":
 
     train_img_data = NpyFolder(opt.train_dir_path, transform=img_transforms)  # train
 
-    avg_loss, avg_acc, avg_prec, avg_recall, avg_f1_score = kfold_stratified_cross_validate_simclr(
+    avg_loss, avg_acc, avg_prec, avg_recall, avg_f1_score = kfold_stratified_cross_validate_supervised_resnet(
         train_img_data, opt.batch_size, opt.lr, opt.weight_decay,
-        k_folds=3, num_epochs=opt.max_epochs, model_save_path="Resnet_supervised.ckpt", logger=None
+        k_folds=opt.k_folds, num_epochs=opt.max_epochs, model_save_path="Resnet_supervised.ckpt", logger=None
     )
     wandb.log({"avg_loss": avg_loss})
     wandb.log({"avg_acc": avg_acc})
