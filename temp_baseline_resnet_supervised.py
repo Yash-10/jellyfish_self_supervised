@@ -1,4 +1,3 @@
-from unittest import result
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -16,12 +15,13 @@ from self_supervised.evaluation import *
 
 class ResNet(pl.LightningModule):
 
-    def __init__(self, num_classes, lr, weight_decay, max_epochs=100):
+    def __init__(self, num_classes, lr, weight_decay, max_epochs=100, weight=torch.tensor([0.5, 0.5]).to(DEVICE)):
         super().__init__()
         self.save_hyperparameters()
         self.model = torchvision.models.resnet34(
             pretrained=False, num_classes=num_classes)
         self.model.conv1 = nn.Conv2d(12, 64, kernel_size=(7, 7), stride=(1, 1), padding=(3, 3), bias=False)
+        self.weight = weight
 
     def configure_optimizers(self):
         optimizer = optim.AdamW(self.parameters(),
@@ -36,7 +36,7 @@ class ResNet(pl.LightningModule):
     def _calculate_loss(self, batch, mode='train'):
         imgs, labels = batch
         preds = self.model(imgs)
-        loss = F.cross_entropy(preds, labels)
+        loss = F.cross_entropy(preds, labels, weight=self.weight)
         acc = (preds.argmax(dim=-1) == labels).float().mean()
 
         self.log(mode + '_loss', loss)
@@ -129,5 +129,5 @@ resnet_model, resnet_result = train_resnet(batch_size=8,
                                            num_classes=2,
                                            lr=1e-3,
                                            weight_decay=2e-4,
-                                           max_epochs=1)
+                                           max_epochs=50)
 print(resnet_result)
