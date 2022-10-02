@@ -127,7 +127,7 @@ def kfold_stratified_cross_validate_simclr(
                         pin_memory=True, num_workers=NUM_WORKERS)
         test_loader = data.DataLoader(
                         training_dataset,
-                        batch_size=batch_size, sampler=test_subsampler)
+                        batch_size=batch_size, sampler=test_subsampler, shuffle=False)
 
         # Ensure stratified split works as expected.
         print("Train loader class distribution:")

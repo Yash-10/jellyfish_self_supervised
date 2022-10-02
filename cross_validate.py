@@ -63,6 +63,7 @@ def kfold_stratified_cross_validate_simclr(
         train_loader = data.DataLoader(
                         training_dataset, batch_size=batch_size, sampler=train_subsampler,
                         pin_memory=True, num_workers=NUM_WORKERS)
+        # Note that the test set would also be transformed similarly to the train set.
         test_loader = data.DataLoader(
                         training_dataset,
                         batch_size=batch_size, sampler=test_subsampler)
