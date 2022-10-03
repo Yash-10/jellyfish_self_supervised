@@ -1,5 +1,6 @@
 import argparse
 import wandb
+from copy import deepcopy
 
 import torch
 import torch.nn as nn
@@ -67,17 +68,13 @@ class ResNet(pl.LightningModule):
         self._calculate_loss(batch, mode='crossval_test')
 
 
-def train_resnet(batch_size, max_epochs=100, **kwargs):
+def train_resnet(train_loader, batch_size, max_epochs=100, **kwargs):
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "ResNet"),
                          gpus=1 if str(DEVICE)=="cuda:0" else 0,
                          max_epochs=max_epochs,
                          callbacks=[LearningRateMonitor("epoch")],
                          progress_bar_refresh_rate=1)
     trainer.logger._default_hp_metric = None
-
-    # Data loaders
-    train_loader = data.DataLoader(train_img_data, batch_size=batch_size, shuffle=True,
-                                   drop_last=True, pin_memory=True, num_workers=NUM_WORKERS)
 
     pl.seed_everything(42) # To be reproducable
     model = ResNet(**kwargs)
@@ -105,6 +102,12 @@ def kfold_stratified_cross_validate_supervised_resnet(
     # Define the K-fold Cross Validator
     kfold = StratifiedKFold(n_splits=k_folds, shuffle=True, random_state=42)
 
+    training_dataset_copy = deepcopy(training_dataset)
+    training_dataset_copy.transform = transforms.Compose([
+        transforms.CenterCrop(size=200),
+        transforms.Normalize(mean=mean, std=std)
+    ])
+
     # ** Perform cross validation **
     # K-fold Cross Validation model evaluation
     for fold, (train_ids, test_ids) in enumerate(kfold.split(training_dataset, training_dataset.targets)):
@@ -124,15 +127,10 @@ def kfold_stratified_cross_validate_supervised_resnet(
         # Define data loaders for training and testing data in this fold.
         train_loader = data.DataLoader(
                         training_dataset, batch_size=batch_size, sampler=train_subsampler,
-                        pin_memory=True, num_workers=NUM_WORKERS)
+                        pin_memory=True, num_workers=NUM_WORKERS, shuffle=True)
         test_loader = data.DataLoader(
-                        training_dataset,
+                        training_dataset_copy,
                         batch_size=batch_size, sampler=test_subsampler, shuffle=False)
-
-        test_loader.dataset.transform = transforms.Compose([
-                            transforms.CenterCrop(size=200),
-                            transforms.Normalize(mean=mean, std=std)
-        ])
 
         # Ensure stratified split works as expected.
         print("Train loader class distribution:")
@@ -142,7 +140,8 @@ def kfold_stratified_cross_validate_supervised_resnet(
         print("[fold] test loader class distribution:")
         _stratify_works_as_expected(test_loader)
 
-        resnet_model, trainer, _ = train_resnet(batch_size=batch_size,
+        resnet_model, trainer, _ = train_resnet(train_loader,
+                                            batch_size=batch_size,
                                             num_classes=2,
                                             lr=lr,
                                             weight_decay=weight_decay,
