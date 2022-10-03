@@ -127,7 +127,7 @@ def kfold_stratified_cross_validate_supervised_resnet(
         # Define data loaders for training and testing data in this fold.
         train_loader = data.DataLoader(
                         training_dataset, batch_size=batch_size, sampler=train_subsampler,
-                        pin_memory=True, num_workers=NUM_WORKERS, shuffle=True)
+                        pin_memory=True, num_workers=NUM_WORKERS, shuffle=False)
         test_loader = data.DataLoader(
                         training_dataset_copy,
                         batch_size=batch_size, sampler=test_subsampler, shuffle=False)
