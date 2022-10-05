@@ -105,7 +105,7 @@ def kfold_stratified_cross_validate_supervised_resnet(
     training_dataset_copy = deepcopy(training_dataset)
     training_dataset_copy.transform = transforms.Compose([
         transforms.CenterCrop(size=200),
-        transforms.Normalize(mean=mean, std=std)
+        transforms.Normalize(mean=mean, std=std)  # mean and std are not defined in this function, but are used from the function that calls this function. In this script, it will be the main funtion that calls this function.
     ])
 
     # ** Perform cross validation **
@@ -187,11 +187,36 @@ def kfold_stratified_cross_validate_supervised_resnet(
     return avg_loss, avg_acc, avg_prec, avg_recall, avg_f1_score
 
 
+def train_test_baseline_supervised(
+    train_img_data, test_img_data, batch_size, lr, weight_decay, max_epochs
+):
+    train_loader = data.DataLoader(
+        train_img_data, batch_size=batch_size, pin_memory=True, num_workers=NUM_WORKERS, shuffle=True
+    )
+    test_loader = data.DataLoader(
+        test_img_data, batch_size=batch_size, pin_memory=True, num_workers=NUM_WORKERS, shuffle=False
+    )
+
+    resnet_model, trainer, _ = train_resnet(train_loader,
+                                batch_size=batch_size,
+                                num_classes=2,
+                                lr=lr,
+                                weight_decay=weight_decay,
+                                max_epochs=max_epochs)
+    train_result = trainer.test(resnet_model, train_loader, verbose=False)
+    train_loss, train_acc, train_prec, train_recall, train_f1_score = train_result[0]["crossval_test_loss"], train_result[0]["crossval_test_acc"], train_result[0]["crossval_test_prec"], train_result[0]["crossval_test_recall"], train_result[0]["crossval_test_f1_score"]
+    test_result = trainer.test(resnet_model, test_loader, verbose=False)
+    loss, acc, prec, recall, f1_score = test_result[0]["crossval_test_loss"], test_result[0]["crossval_test_acc"], test_result[0]["crossval_test_prec"], test_result[0]["crossval_test_recall"], test_result[0]["crossval_test_f1_score"]
+    return {'train': [train_loss, train_acc, train_prec, train_recall, train_f1_score], 'test': [loss, acc, prec, recall, f1_score]}
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='sets pretraining hyperparameters for cross-validation')
+    parser.add_argument('--kfold_cross_val', type=bool, default=True, help='whether to do K-fold cross validation or just normal training and testing. Default is True, i.e. performs K-fold cross validation. Set it to False for final run after optimizing the hyperparameters.')
     parser.add_argument('--train_dir_path', type=str, default=None, help='Path to training directory (must end as "train/")')
+    parser.add_argument('--test_dir_path', type=str, default=None, help='Path to testing directory (must end as "test/")')
     parser.add_argument('--k_folds', type=int, default=3, help='number of folds to create for cross validation.')
-    parser.add_argument('--batch_size', type=int, default=64, help='batch size to use')
+    parser.add_argument('--batch_size', type=int, default=16, help='batch size to use')
     parser.add_argument('--lr', type=float, default=5e-4, help='learning rate')
     parser.add_argument('--weight_decay', type=float, default=1e-4, help='weight decay')
     parser.add_argument('--max_epochs', type=int, default=300, help='no. of pretraining epochs')
@@ -229,12 +254,27 @@ if __name__ == "__main__":
 
     train_img_data = NpyFolder(opt.train_dir_path, transform=img_transforms)  # train
 
-    avg_loss, avg_acc, avg_prec, avg_recall, avg_f1_score = kfold_stratified_cross_validate_supervised_resnet(
-        train_img_data, opt.batch_size, opt.lr, opt.weight_decay,
-        k_folds=opt.k_folds, num_epochs=opt.max_epochs, model_save_path="Resnet_supervised.ckpt", logger=None
-    )
-    wandb.log({"avg_loss": avg_loss})
-    wandb.log({"avg_acc": avg_acc})
-    wandb.log({"avg_prec": avg_prec})
-    wandb.log({"avg_recall": avg_recall})
-    wandb.log({"avg_f1_score": avg_f1_score})
+    if opt.kfold_cross_val:
+        avg_loss, avg_acc, avg_prec, avg_recall, avg_f1_score = kfold_stratified_cross_validate_supervised_resnet(
+            train_img_data, opt.batch_size, opt.lr, opt.weight_decay,
+            k_folds=opt.k_folds, num_epochs=opt.max_epochs, model_save_path="Resnet_supervised.ckpt", logger=None
+        )
+        wandb.log({"avg_loss": avg_loss})
+        wandb.log({"avg_acc": avg_acc})
+        wandb.log({"avg_prec": avg_prec})
+        wandb.log({"avg_recall": avg_recall})
+        wandb.log({"avg_f1_score": avg_f1_score})
+    else:
+        test_img_data = NpyFolder(opt.test_dir_path, transform=img_transforms)  # test
+        test_img_data.transform = transforms.Compose([
+            transforms.CenterCrop(size=200),
+            transforms.Normalize(mean=mean, std=std)
+        ])
+        result_dict = train_test_baseline_supervised(
+            train_img_data, test_img_data, opt.batch_size, opt.lr, opt.weight_decay, opt.max_epochs
+        )
+        wandb.log({"final_run_avg_loss": result_dict['test'][0]})
+        wandb.log({"final_run_avg_acc": result_dict['test'][1]})
+        wandb.log({"final_run_avg_prec": result_dict['test'][2]})
+        wandb.log({"final_run_avg_recall": result_dict['test'][3]})
+        wandb.log({"final_run_avg_f1_score": result_dict['test'][4]})
