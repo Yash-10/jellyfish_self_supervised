@@ -1,4 +1,5 @@
 import argparse
+from unittest import result
 import wandb
 from copy import deepcopy
 
@@ -16,7 +17,9 @@ from data_utils.calculate_mean_std import DummyNpyFolder, get_mean_std
 from data_utils.transformations import CustomColorJitter
 from data_utils.dataset_folder import NpyFolder
 
-from self_supervised.evaluation import precisionRecallFscoreSupport, print_classification_report, plot_confusion_matrix
+from self_supervised.evaluation import (
+    plot_confusion_matrix, precisionRecallFscoreSupport
+)
 from pretrain import print_options
 
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
@@ -24,8 +27,9 @@ from self_supervised.constants import CHECKPOINT_PATH, DEVICE
 from self_supervised.constants import NUM_WORKERS
 from cross_validate import _stratify_works_as_expected
 from sklearn.model_selection import StratifiedKFold
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
 import os
+import torch
 
 
 class ResNet(pl.LightningModule):
@@ -60,9 +64,6 @@ class ResNet(pl.LightningModule):
         self.log(mode + '_prec', prec)
         self.log(mode + '_recall', recall)
         self.log(mode + '_f1_score', f1)
-        self.log_metrics(
-            classification_report(labels, preds_labels)
-        )
         return loss
 
     def training_step(self, batch, batch_idx):
@@ -72,7 +73,7 @@ class ResNet(pl.LightningModule):
         self._calculate_loss(batch, mode='crossval_test')
 
 
-def train_resnet(train_loader, batch_size, max_epochs=100, **kwargs):
+def train_resnet(train_loader, max_epochs=100, **kwargs):
     trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, "ResNet"),
                          gpus=1 if str(DEVICE)=="cuda:0" else 0,
                          max_epochs=max_epochs,
@@ -88,9 +89,8 @@ def train_resnet(train_loader, batch_size, max_epochs=100, **kwargs):
 
     # Get performance on train set.
     train_result = trainer.test(model, train_loader, verbose=False)
-    result = {"train": train_result[0]}
 
-    return model, trainer, result
+    return model, trainer, train_result
 
 
 def kfold_stratified_cross_validate_supervised_resnet(
@@ -145,7 +145,6 @@ def kfold_stratified_cross_validate_supervised_resnet(
         _stratify_works_as_expected(test_loader)
 
         resnet_model, trainer, _ = train_resnet(train_loader,
-                                            batch_size=batch_size,
                                             num_classes=2,
                                             lr=lr,
                                             weight_decay=weight_decay,
@@ -191,27 +190,22 @@ def kfold_stratified_cross_validate_supervised_resnet(
     return avg_loss, avg_acc, avg_prec, avg_recall, avg_f1_score
 
 
-def train_test_baseline_supervised(
-    train_img_data, test_img_data, batch_size, lr, weight_decay, max_epochs
+def train_baseline_supervised(
+    train_loader, lr, weight_decay, max_epochs
 ):
-    train_loader = data.DataLoader(
-        train_img_data, batch_size=batch_size, pin_memory=True, num_workers=NUM_WORKERS, shuffle=True
-    )
-    test_loader = data.DataLoader(
-        test_img_data, batch_size=batch_size, pin_memory=True, num_workers=NUM_WORKERS, shuffle=False
-    )
-
-    resnet_model, trainer, _ = train_resnet(train_loader,
-                                batch_size=batch_size,
+    resnet_model, trainer, train_result = train_resnet(train_loader,
                                 num_classes=2,
                                 lr=lr,
                                 weight_decay=weight_decay,
                                 max_epochs=max_epochs)
-    train_result = trainer.test(resnet_model, train_loader, verbose=False)
-    train_loss, train_acc, train_prec, train_recall, train_f1_score = train_result[0]["crossval_test_loss"], train_result[0]["crossval_test_acc"], train_result[0]["crossval_test_prec"], train_result[0]["crossval_test_recall"], train_result[0]["crossval_test_f1_score"]
-    test_result = trainer.test(resnet_model, test_loader, verbose=False)
-    loss, acc, prec, recall, f1_score = test_result[0]["crossval_test_loss"], test_result[0]["crossval_test_acc"], test_result[0]["crossval_test_prec"], test_result[0]["crossval_test_recall"], test_result[0]["crossval_test_f1_score"]
-    return {'train': [train_loss, train_acc, train_prec, train_recall, train_f1_score], 'test': [loss, acc, prec, recall, f1_score]}
+
+    train_loss, train_acc, train_prec, train_recall, train_f1_score = (
+        train_result[0]["crossval_test_loss"], train_result[0]["crossval_test_acc"], train_result[0]["crossval_test_prec"],
+        train_result[0]["crossval_test_recall"], train_result[0]["crossval_test_f1_score"]
+    )
+    result = {"loss": train_loss , "acc": train_acc, "prec": train_prec, "recall": train_recall, "f1_score": train_f1_score}
+
+    return resnet_model, trainer, result
 
 
 if __name__ == "__main__":
@@ -274,11 +268,66 @@ if __name__ == "__main__":
             transforms.CenterCrop(size=200),
             transforms.Normalize(mean=mean, std=std)
         ])
-        result_dict = train_test_baseline_supervised(
-            train_img_data, test_img_data, opt.batch_size, opt.lr, opt.weight_decay, opt.max_epochs
+        train_loader = data.DataLoader(
+            train_img_data, batch_size=opt.batch_size, pin_memory=True, num_workers=NUM_WORKERS, shuffle=True
         )
-        wandb.log({"final_run_avg_loss": result_dict['test'][0]})
-        wandb.log({"final_run_avg_acc": result_dict['test'][1]})
-        wandb.log({"final_run_avg_prec": result_dict['test'][2]})
-        wandb.log({"final_run_avg_recall": result_dict['test'][3]})
-        wandb.log({"final_run_avg_f1_score": result_dict['test'][4]})
+        resnet_model, trainer, train_result = train_baseline_supervised(
+            train_loader, opt.batch_size, opt.lr, opt.weight_decay, opt.max_epochs
+        )
+        print(f'Train results: {train_result}')
+
+        # Now test
+        test_loader = data.DataLoader(
+            test_img_data, batch_size=1, pin_memory=True, num_workers=NUM_WORKERS, shuffle=False
+        )
+        # test_result = trainer.test(resnet_model, test_loader, verbose=False)
+        # loss, acc, prec, recall, f1_score = test_result[0]["crossval_test_loss"], test_result[0]["crossval_test_acc"], test_result[0]["crossval_test_prec"], test_result[0]["crossval_test_recall"], test_result[0]["crossval_test_f1_score"]
+
+        true_labels = []
+        predicted_labels = []
+        prediction = []
+        f = open("test_gal_names.txt", "w")
+        with torch.no_grad():
+            for i, (imgs, labels) in enumerate(test_loader, 0):
+                preds = resnet_model.model(imgs)
+                loss = F.cross_entropy(preds, labels)
+                acc = (preds.argmax(dim=-1) == labels).float().mean()
+                preds_labels = torch.argmax(preds, axis=-1)
+                true_labels.append(labels.item())
+                predicted_labels.append(preds_labels.item())
+                prediction.append(preds.cpu().numpy().squeeze())
+                sample_fname, _ = test_loader.dataset.samples[i]
+                f.write("{}, {}\n".format(sample_fname, preds_labels.item()))
+
+        f.close()
+
+        import numpy as np
+        prediction = torch.from_numpy(np.array(prediction))
+        prediction = F.softmax(prediction, dim=1)[:, 1]
+        torch.save(prediction, "preds_probs_jellyfish.pt")
+        true_labels = np.array(true_labels)
+        predicted_labels = np.array(predicted_labels)
+
+        cr = classification_report(true_labels, predicted_labels)
+        cm = confusion_matrix(true_labels, predicted_labels)
+
+        print(cr)
+        print(cm)
+
+        import matplotlib.pyplot as plt
+        cmatd = ConfusionMatrixDisplay(cm)
+        cmatd.plot()
+        plt.grid(b=None)
+        wandb.log({"confmat": plt})
+        plt.show()
+
+        # Also save the predicted probabilites.
+        # fig, ax = plt.subplots(1, 1, figsize=(15, 7))
+        # ax.hist(prediction[true_labels==0], bins=50, label='Negatives')
+        # ax.hist(prediction[true_labels==1], bins=50, label='Positives', alpha=0.7, color='r')
+        # ax.set_xlabel('Probability of being Positive Class', fontsize=25)
+        # ax.set_ylabel('Number of records in each bucket', fontsize=25)
+        # ax.legend(fontsize=15)
+        # ax.tick_params(axis='both', labelsize=25, pad=5)
+        # wandb.log({"pred_probs": fig})
+        # plt.show()

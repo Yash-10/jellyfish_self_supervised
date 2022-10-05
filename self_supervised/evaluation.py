@@ -28,3 +28,6 @@ def precisionScore(true_labels, preds_labels):
 
 def precisionRecallFscoreSupport(true_labels, preds_labels):
     return precision_recall_fscore_support(true_labels, preds_labels, beta=1.0, average='macro')
+
+def precisionRecallFscoreSupport_each_class_individual(true_labels, preds_labels):
+    return precision_recall_fscore_support(true_labels, preds_labels, beta=1.0, average=None)
