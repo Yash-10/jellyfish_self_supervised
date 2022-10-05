@@ -16,7 +16,7 @@ from data_utils.calculate_mean_std import DummyNpyFolder, get_mean_std
 from data_utils.transformations import CustomColorJitter
 from data_utils.dataset_folder import NpyFolder
 
-from self_supervised.evaluation import precisionRecallFscoreSupport
+from self_supervised.evaluation import precisionRecallFscoreSupport, print_classification_report, plot_confusion_matrix
 from pretrain import print_options
 
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
@@ -24,6 +24,7 @@ from self_supervised.constants import CHECKPOINT_PATH, DEVICE
 from self_supervised.constants import NUM_WORKERS
 from cross_validate import _stratify_works_as_expected
 from sklearn.model_selection import StratifiedKFold
+from sklearn.metrics import classification_report
 import os
 
 
@@ -59,6 +60,9 @@ class ResNet(pl.LightningModule):
         self.log(mode + '_prec', prec)
         self.log(mode + '_recall', recall)
         self.log(mode + '_f1_score', f1)
+        self.log_metrics(
+            classification_report(labels, preds_labels)
+        )
         return loss
 
     def training_step(self, batch, batch_idx):
@@ -212,7 +216,7 @@ def train_test_baseline_supervised(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='sets pretraining hyperparameters for cross-validation')
-    parser.add_argument('--kfold_cross_val', type=bool, default=True, help='whether to do K-fold cross validation or just normal training and testing. Default is True, i.e. performs K-fold cross validation. Set it to False for final run after optimizing the hyperparameters.')
+    parser.add_argument('--kfold_cross_val', action='store_true', help='whether to do K-fold cross validation or just normal training and testing. Default is True, i.e. performs K-fold cross validation. Set it to False for final run after optimizing the hyperparameters.')
     parser.add_argument('--train_dir_path', type=str, default=None, help='Path to training directory (must end as "train/")')
     parser.add_argument('--test_dir_path', type=str, default=None, help='Path to testing directory (must end as "test/")')
     parser.add_argument('--k_folds', type=int, default=3, help='number of folds to create for cross validation.')
