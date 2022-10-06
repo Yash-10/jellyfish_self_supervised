@@ -210,20 +210,17 @@ def train_baseline_supervised(
     return resnet_model, trainer, result
 
 
-def get_imbalanced_sampler(root_dir):
-    dataset = NpyFolder(root_dir, transform=None)  # We are only interested in class labels here, so transform=None.
-    class_weights = []
-    for root, subdir, files in os.walk(root_dir):
-        if len(files) > 0:
-            class_weights.append(1/len(files))
+def get_imbalanced_sampler(dataset):
+    dataset_indices = dataset.indices
+    y = [dataset.targets[i] for i in dataset_indices]
+    class_sample_count = np.array(
+        [len(np.where(y == t)[0]) for t in np.unique(y)])
 
-    sample_weights = [0] * len(dataset)
+    weight = 1. / class_sample_count
+    samples_weight = np.array([weight[t] for t in y])
+    samples_weight = torch.from_numpy(samples_weight)
+    sampler = WeightedRandomSampler(samples_weight.type('torch.DoubleTensor'), len(samples_weight))
 
-    for idx, (data, label) in enumerate(dataset):
-        class_weight = class_weights[label]
-        sample_weights[idx] = class_weight
-
-    sampler = WeightedRandomSampler(sample_weights, num_samples=len(sample_weights), replacement=True)
     return sampler
 
 
@@ -291,7 +288,7 @@ if __name__ == "__main__":
             transforms.Normalize(mean=mean, std=std)
         ])
 
-        imbalanced_sampler = get_imbalanced_sampler(opt.train_dir_path)
+        imbalanced_sampler = get_imbalanced_sampler(train_img_data)
         train_loader = data.DataLoader(
             train_img_data, pin_memory=True, num_workers=NUM_WORKERS, sampler=imbalanced_sampler
 
