@@ -31,15 +31,17 @@ from sklearn.metrics import classification_report, confusion_matrix, ConfusionMa
 import os
 import torch
 
+import torchvision.datasets as datasets
+from torch.utils.data import WeightedRandomSampler
+
 
 class ResNet(pl.LightningModule):
 
-    def __init__(self, num_classes, lr, weight_decay, max_epochs=100, weight=torch.tensor([0.5, 0.5]).to(DEVICE)):
+    def __init__(self, num_classes, lr, weight_decay, max_epochs=100):
         super().__init__()
         self.save_hyperparameters()
         self.model = torchvision.models.resnet34(pretrained=False, num_classes=num_classes)
         self.model.conv1 = nn.Conv2d(12, 64, kernel_size=(7, 7), stride=(1, 1), padding=(3, 3), bias=False)
-        self.weight = weight
 
     def configure_optimizers(self):
         optimizer = optim.AdamW(self.parameters(),
@@ -54,7 +56,7 @@ class ResNet(pl.LightningModule):
     def _calculate_loss(self, batch, mode='train'):
         imgs, labels = batch
         preds = self.model(imgs)
-        loss = F.cross_entropy(preds, labels, weight=self.weight if mode == 'train' else None)
+        loss = F.cross_entropy(preds, labels)
         acc = (preds.argmax(dim=-1) == labels).float().mean()
 
         self.log(mode + '_loss', loss)
@@ -208,6 +210,23 @@ def train_baseline_supervised(
     return resnet_model, trainer, result
 
 
+def get_imbalanced_sampler(root_dir):
+    dataset = NpyFolder(root_dir, transform=None)  # We are only interested in class labels here, so transform=None.
+    class_weights = []
+    for root, subdir, files in os.walk(root_dir):
+        if len(files) > 0:
+            class_weights.append(1/len(files))
+
+    sample_weights = [0] * len(dataset)
+
+    for idx, (data, label) in enumerate(dataset):
+        class_weight = class_weights[label]
+        sample_weights[idx] = class_weight
+
+    sampler = WeightedRandomSampler(sample_weights, num_samples=len(sample_weights), replacement=True)
+    return sampler
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='sets pretraining hyperparameters for cross-validation')
     parser.add_argument('--kfold_cross_val', action='store_true', help='whether to do K-fold cross validation or just normal training and testing. Default is True, i.e. performs K-fold cross validation. Set it to False for final run after optimizing the hyperparameters.')
@@ -220,14 +239,16 @@ if __name__ == "__main__":
     parser.add_argument('--max_epochs', type=int, default=300, help='no. of pretraining epochs')
     parser.add_argument('--model_save_path', type=str, default='resnet_supervised.pth', help='path to save the trained model during cross-validation')
     parser.add_argument('--wandb_projectname', type=str, default='crossval-my-wandb-project', help='project name for wandb logging')
+    parser.add_argument('--use_wandb', action='store_true', help='whether to use wandb for logging')
 
     opt = parser.parse_args()
 
     # Print options
     print_options(opt)
 
-    # Create a wandb logger
-    wandb_logger = WandbLogger(name=f'supervised_resnet-{opt.batch_size}-{opt.lr}-{opt.weight_decay}-{opt.max_epochs}', project=opt.wandb_projectname)  # For each distinct set of hyperparameters, use a different `name`.
+    if opt.use_wandb:
+        # Create a wandb logger
+        wandb_logger = WandbLogger(name=f'supervised_resnet-{opt.batch_size}-{opt.lr}-{opt.weight_decay}-{opt.max_epochs}', project=opt.wandb_projectname)  # For each distinct set of hyperparameters, use a different `name`.
 
     print('Calculating mean and standard deviation across training dataset...')
     dataset = DummyNpyFolder(opt.train_dir_path, transform=None)  # train
@@ -257,19 +278,23 @@ if __name__ == "__main__":
             train_img_data, opt.batch_size, opt.lr, opt.weight_decay,
             k_folds=opt.k_folds, num_epochs=opt.max_epochs, model_save_path="Resnet_supervised.ckpt", logger=None
         )
-        wandb.log({"avg_loss": avg_loss})
-        wandb.log({"avg_acc": avg_acc})
-        wandb.log({"avg_prec": avg_prec})
-        wandb.log({"avg_recall": avg_recall})
-        wandb.log({"avg_f1_score": avg_f1_score})
+        if opt.use_wandb:
+            wandb.log({"avg_loss": avg_loss})
+            wandb.log({"avg_acc": avg_acc})
+            wandb.log({"avg_prec": avg_prec})
+            wandb.log({"avg_recall": avg_recall})
+            wandb.log({"avg_f1_score": avg_f1_score})
     else:
         test_img_data = NpyFolder(opt.test_dir_path, transform=img_transforms)  # test
         test_img_data.transform = transforms.Compose([
             transforms.CenterCrop(size=200),
             transforms.Normalize(mean=mean, std=std)
         ])
+
+        imbalanced_sampler = get_imbalanced_sampler(opt.train_dir_path)
         train_loader = data.DataLoader(
-            train_img_data, pin_memory=True, num_workers=NUM_WORKERS, shuffle=True
+            train_img_data, pin_memory=True, num_workers=NUM_WORKERS, sampler=imbalanced_sampler
+
         )
         resnet_model, trainer, train_result = train_baseline_supervised(
             train_loader, opt.lr, opt.weight_decay, opt.max_epochs
@@ -318,7 +343,8 @@ if __name__ == "__main__":
         cmatd = ConfusionMatrixDisplay(cm)
         cmatd.plot()
         plt.grid(b=None)
-        wandb.log({"confmat": plt})
+        if opt.use_wandb:
+            wandb.log({"confmat": plt})
         plt.show()
 
         # Also save the predicted probabilites.
