@@ -269,10 +269,10 @@ if __name__ == "__main__":
             transforms.Normalize(mean=mean, std=std)
         ])
         train_loader = data.DataLoader(
-            train_img_data, batch_size=opt.batch_size, pin_memory=True, num_workers=NUM_WORKERS, shuffle=True
+            train_img_data, pin_memory=True, num_workers=NUM_WORKERS, shuffle=True
         )
         resnet_model, trainer, train_result = train_baseline_supervised(
-            train_loader, opt.batch_size, opt.lr, opt.weight_decay, opt.max_epochs
+            train_loader, opt.lr, opt.weight_decay, opt.max_epochs
         )
         print(f'Train results: {train_result}')
 
