@@ -1,5 +1,4 @@
 import argparse
-import wandb
 from copy import deepcopy
 
 import numpy as np
@@ -34,14 +33,17 @@ import torch
 import torchvision.datasets as datasets
 from torch.utils.data import WeightedRandomSampler
 
+from sklearn.utils.class_weight import compute_class_weight
+
 
 class ResNet(pl.LightningModule):
 
-    def __init__(self, num_classes, lr, weight_decay, max_epochs=100):
+    def __init__(self, num_classes, lr, weight_decay, max_epochs=100, weights=None):
         super().__init__()
         self.save_hyperparameters()
         self.model = torchvision.models.resnet34(pretrained=False, num_classes=num_classes)
         self.model.conv1 = nn.Conv2d(12, 64, kernel_size=(7, 7), stride=(1, 1), padding=(3, 3), bias=False)
+        self.weight = weights
 
     def configure_optimizers(self):
         optimizer = optim.AdamW(self.parameters(),
@@ -56,7 +58,7 @@ class ResNet(pl.LightningModule):
     def _calculate_loss(self, batch, mode='train'):
         imgs, labels = batch
         preds = self.model(imgs)
-        loss = F.cross_entropy(preds, labels)
+        loss = F.cross_entropy(preds, labels, weight=self.weight)
         acc = (preds.argmax(dim=-1) == labels).float().mean()
 
         self.log(mode + '_loss', loss)
@@ -193,13 +195,14 @@ def kfold_stratified_cross_validate_supervised_resnet(
 
 
 def train_baseline_supervised(
-    train_loader, lr, weight_decay, max_epochs
+    train_loader, lr, weight_decay, max_epochs, weights=None
 ):
     resnet_model, trainer, train_result = train_resnet(train_loader,
                                 num_classes=2,
                                 lr=lr,
                                 weight_decay=weight_decay,
-                                max_epochs=max_epochs)
+                                max_epochs=max_epochs,
+                                weights=weights)
 
     train_loss, train_acc, train_prec, train_recall, train_f1_score = (
         train_result[0]["crossval_test_loss"], train_result[0]["crossval_test_acc"], train_result[0]["crossval_test_prec"],
@@ -245,6 +248,7 @@ if __name__ == "__main__":
     print_options(opt)
 
     if opt.use_wandb:
+        import wandb
         # Create a wandb logger
         wandb_logger = WandbLogger(name=f'supervised_resnet-{opt.batch_size}-{opt.lr}-{opt.weight_decay}-{opt.max_epochs}', project=opt.wandb_projectname)  # For each distinct set of hyperparameters, use a different `name`.
 
@@ -289,13 +293,16 @@ if __name__ == "__main__":
             transforms.Normalize(mean=mean, std=std)
         ])
 
-        imbalanced_sampler = get_imbalanced_sampler(train_img_data)
+        # imbalanced_sampler = get_imbalanced_sampler(train_img_data)
+        class_weights = torch.tensor(compute_class_weight(
+            class_weight='balanced', classes=np.unique(train_img_data.targets), y=train_img_data.targets
+        ), dtype=torch.float)
         train_loader = data.DataLoader(
-            train_img_data, pin_memory=True, num_workers=NUM_WORKERS, sampler=imbalanced_sampler
+            train_img_data, pin_memory=True, num_workers=NUM_WORKERS, shuffle=True
 
         )
         resnet_model, trainer, train_result = train_baseline_supervised(
-            train_loader, opt.lr, opt.weight_decay, opt.max_epochs
+            train_loader, opt.lr, opt.weight_decay, opt.max_epochs, weights=class_weights
         )
         print(f'Train results: {train_result}')
 
