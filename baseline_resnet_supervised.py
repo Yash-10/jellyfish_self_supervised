@@ -1,8 +1,8 @@
 import argparse
-from unittest import result
 import wandb
 from copy import deepcopy
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -211,7 +211,8 @@ def train_baseline_supervised(
 
 
 def get_imbalanced_sampler(dataset):
-    dataset_indices = dataset.indices
+    dataset_indices = [d[1] for d in dataset.samples]
+    # dataset_indices = dataset.indices
     y = [dataset.targets[i] for i in dataset_indices]
     class_sample_count = np.array(
         [len(np.where(y == t)[0]) for t in np.unique(y)])
