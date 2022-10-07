@@ -135,7 +135,7 @@ def perform_linear_eval(
     test_feats = StandardScaler().fit_transform(test_feats)
 
     clf = LogisticRegression(
-        random_state=0, solver='liblinear', class_weight={0: 0.5, 1: 0.5}
+        random_state=0, solver='liblinear', class_weight='balanced'
     ).fit(train_feats, train_labels)
 
     pred_labels = clf.predict(test_feats)
