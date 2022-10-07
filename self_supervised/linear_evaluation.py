@@ -23,48 +23,52 @@ from data_utils.calculate_mean_std import DummyNpyFolder, get_mean_std
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from self_supervised.constants import CHECKPOINT_PATH, DEVICE
 from self_supervised.model import SimCLR
+from self_supervised.evaluation import print_classification_report, plot_confusion_matrix
+
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
 
 
 NUM_WORKERS = os.cpu_count()
 
-class LogisticRegression(pl.LightningModule):
+# class LogisticRegression(pl.LightningModule):
 
-    def __init__(self, feature_dim, num_classes, lr, weight_decay, max_epochs=100, weight=torch.tensor([0.3, 0.7]).to(DEVICE)):
-        super().__init__()
-        self.save_hyperparameters()
-        # Mapping from representation h to classes
-        self.model = nn.Linear(feature_dim, num_classes)
-        self.weight = weight
+#     def __init__(self, feature_dim, num_classes, lr, weight_decay, max_epochs=100, weight=torch.tensor([0.3, 0.7]).to(DEVICE)):
+#         super().__init__()
+#         self.save_hyperparameters()
+#         # Mapping from representation h to classes
+#         self.model = nn.Linear(feature_dim, num_classes)
+#         self.weight = weight
 
-    def configure_optimizers(self):
-        # optimizer = optim.SGD(self.parameters(), lr=self.hparams.lr, momentum=0.9)
-        optimizer = optim.AdamW(self.parameters(),
-                                lr=self.hparams.lr,
-                                weight_decay=self.hparams.weight_decay)
-        lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer,
-                                                      milestones=[int(self.hparams.max_epochs*0.1),
-                                                                  int(self.hparams.max_epochs*0.8)],
-                                                      gamma=0.1)
-        return [optimizer], [lr_scheduler]
+#     def configure_optimizers(self):
+#         # optimizer = optim.SGD(self.parameters(), lr=self.hparams.lr, momentum=0.9)
+#         optimizer = optim.AdamW(self.parameters(),
+#                                 lr=self.hparams.lr,
+#                                 weight_decay=self.hparams.weight_decay)
+#         lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer,
+#                                                       milestones=[int(self.hparams.max_epochs*0.1),
+#                                                                   int(self.hparams.max_epochs*0.8)],
+#                                                       gamma=0.1)
+#         return [optimizer], [lr_scheduler]
 
-    def _calculate_loss(self, batch, mode='train'):
-        feats, labels = batch
-        preds = self.model(feats)
-        loss = F.cross_entropy(preds, labels, weight=self.weight)
-        acc = (preds.argmax(dim=-1) == labels).float().mean()
+#     def _calculate_loss(self, batch, mode='train'):
+#         feats, labels = batch
+#         preds = self.model(feats)
+#         loss = F.cross_entropy(preds, labels, weight=self.weight)
+#         acc = (preds.argmax(dim=-1) == labels).float().mean()
 
-        self.log(mode + '_loss', loss)
-        self.log(mode + '_acc', acc)
-        return loss
+#         self.log(mode + '_loss', loss)
+#         self.log(mode + '_acc', acc)
+#         return loss
 
-    def training_step(self, batch, batch_idx):
-        return self._calculate_loss(batch, mode='train')
+#     def training_step(self, batch, batch_idx):
+#         return self._calculate_loss(batch, mode='train')
 
-    def validation_step(self, batch, batch_idx):
-        self._calculate_loss(batch, mode='val')
+#     def validation_step(self, batch, batch_idx):
+#         self._calculate_loss(batch, mode='val')
 
-    def test_step(self, batch, batch_idx):
-        self._calculate_loss(batch, mode='test')
+#     def test_step(self, batch, batch_idx):
+#         self._calculate_loss(batch, mode='test')
 
 
 @torch.no_grad()
@@ -101,100 +105,43 @@ def prepare_data_features(model, dataset, device=DEVICE):
     return data.TensorDataset(feats, labels), batch_images
 
 
-def train_logreg(batch_size, train_feats_data, max_epochs=100, save_path=os.path.join(CHECKPOINT_PATH, 'LogisticRegression.ckpt'), **kwargs):
-    """Trains a logistic regression model on the extracted features."""
-    trainer = pl.Trainer(default_root_dir=os.path.join(CHECKPOINT_PATH, 'LogisticRegression'),
-                         gpus=1 if str(DEVICE)=="cuda:0" else 0,
-                         max_epochs=max_epochs,
-                         callbacks=[LearningRateMonitor("epoch")],
-                         progress_bar_refresh_rate=0)
-    trainer.logger._default_hp_metric = None
-
-    # Data loaders
-    train_loader = data.DataLoader(train_feats_data, batch_size=batch_size, shuffle=True,
-                                   drop_last=False, pin_memory=True, num_workers=0)
-
-    pl.seed_everything(42)  # To be reproducable
-    model = LogisticRegression(**kwargs)
-    trainer.fit(model, train_loader)
-    trainer.save_checkpoint(save_path)
-    model = LogisticRegression.load_from_checkpoint(checkpoint_path=save_path)
-
-    # Test best model on train set.
-    train_result = trainer.test(model, train_loader, verbose=False)
-    result = {"train": train_result[0]["test_acc"]}
-
-    return model, result
-
-
 def perform_linear_eval(
-    train_img_loader, test_img_loader, logistic_lr, logistic_weight_decay,
-    logistic_batch_size, simclr_model, num_epochs=100
+    train_img_loader, test_img_loader, simclr_model
 ):
-    # Extract features
-    train_feats_simclr, _ = prepare_data_features(simclr_model, train_img_loader)
-    feature_dim = train_feats_simclr.tensors[0].shape[1]
+    """_summary_
 
-    logreg_model, results = train_logreg(
-        batch_size=logistic_batch_size,
-        train_feats_data=train_feats_simclr,
-        feature_dim=feature_dim,
-        num_classes=2,  # jellyfish and non-jellyfish
-        lr=logistic_lr,
-        weight_decay=logistic_weight_decay,  # Perform grid-search on this to find which weight decay is the best
-        max_epochs=num_epochs
-    )
-    print(f'Linear evaluation training results:\n\t{results}')
-    print('Now starting testing...')
+    Args:
+        train_img_loader (_type_): _description_
+        test_img_loader (_type_): _description_
+        simclr_model (_type_): _description_
 
-    # Testing.
-    test_feats_simclr, test_batch_images = prepare_data_features(simclr_model, test_img_loader)
-    preds_labels, preds, true_labels = test_logreg(logreg_model, test_batch_images, test_feats_simclr)
+    Returns:
+        _type_: _description_
 
-    return logreg_model, preds_labels, preds, true_labels
-
-
-def test_logreg(logreg_model, test_batch_images, test_feats_simclr):
-    """Test the fitted logistic regression model on test features.
-    
-    logreg_model: LogisticRegression
-        A trained logisitc regression model.
-    test_feats_simclr: torch.tensor
-        Features of test images.
-    
-    Returns
-    -------
-    preds_labels: numpy.ndarray
-        Predicted labels of shape (num_examples,).
-    preds: numpy.ndarray
-        Predicted probabilities of shape (num_examples, 2).
-    true_labels: numpy.ndarray
-        True labels of shape (num_examples,).
+    Note: train_img_loader and test_img_loader can either be dataloaders or can also be a dataset object.
 
     """
-    shuffled_dataset = torch.utils.data.Subset(test_feats_simclr, torch.randperm(len(test_feats_simclr)).tolist())
-    test_loader = data.DataLoader(shuffled_dataset, batch_size=1, num_workers=0, shuffle=False)
-    
-    outputs, true_labels, failed = [], [], []
-    for i, (x, y) in enumerate(test_loader):
-        logreg_output = logreg_model.model(x).detach().data.cpu()
+    # Extract features
+    train_feats_simclr, _ = prepare_data_features(simclr_model, train_img_loader)
+    test_feats_simclr, _ = prepare_data_features(simclr_model, test_img_loader)
 
-        # Note: `pred` is the probability array.
-        # Note: We need to add a sigmoid layer since the LogisticRegression class only outputs Ax+b. Now, pred values must be all between 0 and 1, inclusive.
-        # In the LogisticRegression class we did not have a sigmoid layer at the end because while training, we used the F.cross_entropy function that internally does LogSoftmax + NLLLoss. If we were to get the probabilities manually, as done here, we need a sigmoid layer.
-        # Tangential points: If we instead used nn.BCELoss instead of nn.CrossEntropyLoss inside the LogisticRegression class, then we would need the sigmoid layer at the end. To solve this for binary problems, we can use BCEWithLogitsLoss and then we don't need sigmoid at the end.
-        pred = torch.sigmoid(logreg_output).numpy()
+    train_feats, train_labels, test_feats, test_labels = (
+        train_feats_simclr.tensors[0].numpy(), train_feats_simclr.tensors[1].numpy(),
+        test_feats_simclr.tensors[0].numpy(), test_feats_simclr.tensors[1].numpy()
+    )
 
-        assert pred.all() >= 0 and pred.all() <= 1
+    # Preprocess features.    
+    train_feats = StandardScaler().fit_transform(train_feats)
+    test_feats = StandardScaler().fit_transform(test_feats)
 
-        if np.argmax(pred, axis=-1)[0] != y.item():
-            failed.append((test_batch_images[i], y, np.argmax(pred, axis=-1)))
+    clf = LogisticRegression(
+        random_state=0, solver='liblinear', class_weight={0: 0.5, 1: 0.5}
+    ).fit(train_feats, train_labels)
 
-        outputs.append(pred)
-        true_labels.append(y)
+    pred_labels = clf.predict(test_feats)
+    prediction = clf.predict_proba(test_feats)[:, 1]  # Prediction probability of class = 1.
 
-    preds = np.vstack(outputs)
-    preds_labels = np.argmax(preds, axis=-1)
-    true_labels = [t.item() for t in true_labels]
+    print_classification_report(test_labels, pred_labels)
+    plot_confusion_matrix(test_labels, pred_labels)
 
-    return preds_labels, preds, true_labels
+    return pred_labels, prediction, test_labels

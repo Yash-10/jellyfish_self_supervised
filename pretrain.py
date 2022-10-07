@@ -163,14 +163,13 @@ if __name__ == "__main__":
         simclr_model.load_state_dict(torch.load(opt.model_save_path))
         simclr_model.eval()  # Set it to eval mode.
 
-        logreg_model, preds_labels, preds, true_labels = perform_linear_eval(
-            opt.train_dir_path, opt.hidden_dim, opt.lr, opt.temperature, opt.weight_decay, opt.max_epochs,
-            opt.logistic_lr, opt.logistic_weight_decay, opt.logistic_batch_size, simclr_model
+        pred_labels, prediction, test_labels = perform_linear_eval(
+            train_img_data, test_img_data, simclr_model
         )
         print(f'Final linear evaluation results:')
         print('Classification report:')
-        print_classification_report(true_labels, preds_labels)
+        print_classification_report(test_labels, pred_labels)
         print('Confusion matrix')
-        plot_confusion_matrix(true_labels, preds_labels)
+        plot_confusion_matrix(test_labels, pred_labels)
     elif opt.to_fine_tune:
         pass  # TODO: Add code...

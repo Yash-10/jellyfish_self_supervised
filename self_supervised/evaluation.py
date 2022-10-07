@@ -31,3 +31,20 @@ def precisionRecallFscoreSupport(true_labels, preds_labels):
 
 def precisionRecallFscoreSupport_each_class_individual(true_labels, preds_labels):
     return precision_recall_fscore_support(true_labels, preds_labels, beta=1.0, average=None)
+
+def plot_pred_probs(prediction, test_labels):
+    """Plot prediction probability for class = 1.
+
+    Args:
+        prediction (numpy.ndarray): Prediction probability corresponding to class = 1.
+        test_labels (_type_): Test labels.
+
+    """
+    plt.figure(figsize=(15,7))
+    plt.hist(prediction[test_labels==0], bins=50, label='Negatives')
+    plt.hist(prediction[test_labels==1], bins=50, label='Positives', alpha=0.7, color='r')
+    plt.xlabel('Probability of being Positive Class', fontsize=25)
+    plt.ylabel('Number of records in each bucket', fontsize=25)
+    plt.legend(fontsize=15)
+    plt.tick_params(axis='both', labelsize=25, pad=5)
+    plt.show()
