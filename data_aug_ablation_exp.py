@@ -4,6 +4,11 @@ import argparse
 import torch
 from sklearn.model_selection import StratifiedKFold
 
+from data_utils.calculate_mean_std import DummyNpyFolder, get_mean_std
+
+from copy import deepcopy
+from torchvision import transforms
+
 from torch.utils import data
 from pytorch_lightning.loggers import WandbLogger
 
@@ -13,6 +18,7 @@ from self_supervised.linear_evaluation import perform_linear_eval
 from self_supervised.evaluation import (
     print_classification_report, plot_confusion_matrix, precisionRecallFscoreSupport
 )
+from self_supervised.linear_evaluation import prepare_data_features
 from data_utils.dataset_folder import prepare_data_for_pretraining
 
 
@@ -35,13 +41,18 @@ def test_simclr(trainer, test_loader, model_path):
 
 
 def kfold_stratified_cross_validate_data_aug_ablation(
-    train_dir_path, training_dataset, batch_size, hidden_dim, lr, temperature, weight_decay,
-    logistic_lr, logistic_weight_decay, logistic_batch_size,
-    k_folds=3, num_epochs_pretrain=300, num_epochs_linear_eval=100, model_save_path="SimCLR_pretrained_dataaug_exp.ckpt",
+    training_dataset, batch_size, hidden_dim, lr, temperature, weight_decay,
+    k_folds=3, num_epochs_pretrain=300, model_save_path="SimCLR_pretrained_dataaug_exp.ckpt",
     logger=None, encoder='resnet34'
 ):
     # Set fixed random number seed
     torch.manual_seed(42)
+
+    training_dataset_copy = deepcopy(training_dataset)
+    training_dataset_copy.transform = transforms.Compose([
+        transforms.CenterCrop(size=200),
+        transforms.Normalize(mean=mean, std=std)  # mean and std are not defined in this function, but are used from the function that calls this function. In this script, it will be the main funtion that calls this function.
+    ])
 
     # For fold results
     results = {}
@@ -68,18 +79,18 @@ def kfold_stratified_cross_validate_data_aug_ablation(
         # Define data loaders for training and testing data in this fold.
         train_loader = data.DataLoader(
                         training_dataset, batch_size=batch_size, sampler=train_subsampler,
-                        pin_memory=True, num_workers=NUM_WORKERS)
-        test_loader = data.DataLoader(
-                        training_dataset,
-                        batch_size=batch_size, sampler=test_subsampler)
+                        pin_memory=True, num_workers=NUM_WORKERS, shuffle=False)
+        # test_loader = data.DataLoader(
+        #                 training_dataset,
+        #                 batch_size=batch_size, sampler=test_subsampler, shuffle=False)
 
         # Ensure stratified split works as expected.
         print("Train loader class distribution:")
         _stratify_works_as_expected(data.DataLoader(training_dataset))
         print("[fold] train loader class distribution:")
         _stratify_works_as_expected(train_loader)
-        print("[fold] test loader class distribution:")
-        _stratify_works_as_expected(test_loader)
+        # print("[fold] test loader class distribution:")
+        # _stratify_works_as_expected(test_loader)
 
         save_path = os.path.join(CHECKPOINT_PATH, model_save_path)
         simclr_model, trainer = train_simclr(train_loader,
@@ -95,8 +106,15 @@ def kfold_stratified_cross_validate_data_aug_ablation(
                         )
         simclr_model.eval()  # Set it to eval mode.
 
-        _, preds_labels, _, true_labels = perform_linear_eval(
-            train_dir_path, logistic_lr, logistic_weight_decay, logistic_batch_size, simclr_model, num_epochs=num_epochs_linear_eval
+        # Extract features (note: we need to remove all transforms except normalizing before feature extraction).
+        train_loader = data.DataLoader(
+                        training_dataset_copy, batch_size=batch_size, sampler=train_subsampler,
+                        pin_memory=True, num_workers=NUM_WORKERS, shuffle=False)
+        test_loader = data.DataLoader(
+                        training_dataset_copy,
+                        batch_size=batch_size, sampler=test_subsampler, shuffle=False)
+        preds_labels, _, true_labels = perform_linear_eval(
+            train_loader, test_loader, simclr_model
         )
         print(f'Final linear evaluation results:')
         print('Classification report:')
@@ -143,11 +161,7 @@ if __name__ == "__main__":
     parser.add_argument('--temperature', type=float, default=0.05, help='temperature')
     parser.add_argument('--weight_decay', type=float, default=1e-4, help='weight decay')
     parser.add_argument('--batch_size', type=int, default=128, help='batch size to use')
-    parser.add_argument('--logistic_lr', type=float, default=1e-4, help='learning rate for logistic regression')
-    parser.add_argument('--logistic_weight_decay', type=float, default=1e-4, help='weight decay for logistic regression')
-    parser.add_argument('--logistic_batch_size', type=float, default=1e-4, help='batch size for logistic regression')
     parser.add_argument('--num_epochs_pretrain', type=int, default=300, help='no. of pretraining epochs')
-    parser.add_argument('--num_epochs_linear_eval', type=int, default=100, help='no. of epochs to train logistic regression')
     parser.add_argument('--encoder', type=str, default='resnet18', help='encoder architecture to use. Options: resnet18 | resnet34 | resnet52')
     parser.add_argument('--model_save_path', type=str, default='simclr_pretrained_model_cv.pth', help='path to save the pretrained model during cross-validation')
     parser.add_argument('--wandb_projectname', type=str, default='crossval-my-wandb-project', help='project name for wandb logging')
@@ -160,15 +174,19 @@ if __name__ == "__main__":
     # Create a wandb logger
     wandb_logger = WandbLogger(name=f'data_aug-{opt.logistic_batch_size}-{opt.logistic_weight_decay}-{opt.logistic_lr}-{opt.num_epochs_linear_eval}-{opt.num_epochs_pretrain}', project=opt.wandb_projectname)  # For each distinct set of hyperparameters, use a different `name`.
 
+    print('Calculating mean and standard deviation across training dataset...')
+    dataset = DummyNpyFolder(opt.train_dir_path, transform=None)  # train
+    loader = data.DataLoader(dataset=dataset, batch_size=1, shuffle=True)
+    mean, std = get_mean_std(loader)
+    
     # Prepare data.
     train_data, _ = prepare_data_for_pretraining(opt.train_dir_path, mode='cv')
 
     # K-Fold cross validation.
     print('Starting K-Fold cross validation...')
     avg_precision, avg_recall, avg_f1_score = kfold_stratified_cross_validate_data_aug_ablation(
-        opt.train_dir_path, train_data, opt.batch_size, opt.hidden_dim, opt.lr, opt.temperature, opt.weight_decay,
-        opt.logistic_lr, opt.logistic_weight_decay, opt.logistic_batch_size,
-        k_folds=opt.k_folds, num_epochs_pretrain=opt.num_epochs_pretrain, num_epochs_linear_eval=opt.num_epochs_linear_eval,
+        train_data, opt.batch_size, opt.hidden_dim, opt.lr, opt.temperature, opt.weight_decay,
+        k_folds=opt.k_folds, num_epochs_pretrain=opt.num_epochs_pretrain,
         model_save_path=opt.model_save_path, logger=wandb_logger, encoder=opt.encoder
     )
 
