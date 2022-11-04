@@ -24,7 +24,6 @@ from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from self_supervised.constants import CHECKPOINT_PATH, DEVICE
 from self_supervised.model import SimCLR
 from self_supervised.evaluation import print_classification_report, plot_confusion_matrix
-from data_utils.utils import get_imbalanced_sampler
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
@@ -71,6 +70,19 @@ NUM_WORKERS = os.cpu_count()
 #     def test_step(self, batch, batch_idx):
 #         self._calculate_loss(batch, mode='test')
 
+
+from torch.utils.data import WeightedRandomSampler
+def get_imbalanced_sampler(dataset):
+    y = dataset.tensors[1]
+    class_sample_count = np.array(
+        [len(np.where(y == t)[0]) for t in np.unique(y)])
+
+    weight = 1. / class_sample_count
+    samples_weight = np.array([weight[t] for t in y])
+    samples_weight = torch.from_numpy(samples_weight)
+    sampler = WeightedRandomSampler(samples_weight.type('torch.DoubleTensor'), len(samples_weight))
+
+    return sampler
 
 @torch.no_grad()
 def prepare_data_features(model, dataset, device=DEVICE):
@@ -133,7 +145,7 @@ def perform_linear_eval(
 
     """
     test_feats, test_labels = (
-        test_feats_simclr.tensors[0].numpy(), test_feats_simclr.tensors[1].numpy()
+        test_feats_simclr.tensors[0], test_feats_simclr.tensors[1]
     )
 
     imbalanced_sampler = get_imbalanced_sampler(train_feats_simclr)

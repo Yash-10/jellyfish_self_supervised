@@ -11,7 +11,7 @@ from sklearn.model_selection import StratifiedKFold
 from torch.utils import data
 from self_supervised.linear_evaluation import perform_linear_eval
 from self_supervised.constants import CHECKPOINT_PATH, NUM_WORKERS
-from self_supervised.evaluation import precisionRecallFscoreSupport_each_class_individual
+from self_supervised.evaluation import precisionRecallFscoreSupport
 
 
 def kfold_cv(train_feats_simclr, k_folds=3, lr=1e-2, weight_decay=1e-3, num_epochs=100, batch_size=1):
@@ -40,20 +40,13 @@ def kfold_cv(train_feats_simclr, k_folds=3, lr=1e-2, weight_decay=1e-3, num_epoc
 
         print(f'No. of training examples: {len(train_subsampler.indices)}, No. of testing examples: {len(test_subsampler.indices)}')
 
-        # Define data loaders for training and testing data in this fold.
-        train_loader = data.DataLoader(
-                        train_feats_simclr, batch_size=batch_size, sampler=train_subsampler,
-                        pin_memory=True, num_workers=NUM_WORKERS)
-        # Note that the test set would also be transformed similarly to the train set.
-        test_loader = data.DataLoader(
-                        train_feats_simclr,
-                        batch_size=batch_size, sampler=test_subsampler)
-
+        xx = torch.utils.data.TensorDataset(train_feats_simclr.tensors[0][train_ids], train_feats_simclr.tensors[1][train_ids])
+        yy = torch.utils.data.TensorDataset(train_feats_simclr.tensors[0][test_ids], train_feats_simclr.tensors[1][test_ids])
         y_pred_class, _, test_labels = perform_linear_eval(
-            train_feats_simclr[train_ids], train_feats_simclr[test_ids], number_of_epochs=num_epochs, lr=lr, weight_decay=weight_decay
+            xx, yy, number_of_epochs=num_epochs, lr=lr, weight_decay=weight_decay
         )
 
-        precision, recall, f1_score, _ = precisionRecallFscoreSupport_each_class_individual(test_labels, y_pred_class)
+        precision, recall, f1_score, _ = precisionRecallFscoreSupport(test_labels, y_pred_class)
 
         # Print result on this fold.
         print(f'Result on fold {fold}: {precision, recall, f1_score}')
