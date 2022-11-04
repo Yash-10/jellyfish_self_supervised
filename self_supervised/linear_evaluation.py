@@ -129,7 +129,7 @@ class Logistic_Reg_model(torch.nn.Module):
         return y_predicted
 
 def perform_linear_eval(
-    train_feats_simclr, test_feats_simclr, number_of_epochs=100, lr=1e-2, weight_decay=1e-3
+    train_feats_simclr, test_feats_simclr, number_of_epochs=100, lr=1e-2
 ):
     """_summary_
 
@@ -154,7 +154,7 @@ def perform_linear_eval(
 
     model = Logistic_Reg_model(512)
     criterion = torch.nn.BCEWithLogitsLoss()
-    optimizer = torch.optim.AdamW(model.parameters(),lr=lr, weight_decay=weight_decay)
+    optimizer = torch.optim.SGD(model.parameters(), lr=lr)
     for epoch in range(number_of_epochs):
         for x, y in train_loader:
             y_prediction = model(x)

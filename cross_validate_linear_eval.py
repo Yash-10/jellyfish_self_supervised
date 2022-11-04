@@ -77,7 +77,6 @@ if __name__ == "__main__":
     parser.add_argument('--train_feats_path', type=str, default=None, help='Path to training representations')
     parser.add_argument('--k_folds', type=int, default=3, help='no. of folds.')
     parser.add_argument('--lr', type=float, default=1e-2, help='learning rate')
-    parser.add_argument('--weight_decay', type=float, default=1e-3, help='weight decay')
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--num_epochs', type=int, default=100, help='no. of epochs')
     parser.add_argument('--wandb_projectname', type=str, default='crossval-my-wandb-project', help='project name for wandb logging')
@@ -92,7 +91,7 @@ if __name__ == "__main__":
 
     train_feats_simclr = torch.load(opt.train_feats_path)
     avg_prec, avg_recall, avg_f1_score = kfold_cv(
-        train_feats_simclr, k_folds=opt.k_folds, lr=opt.lr, weight_decay=opt.weight_decay,
+        train_feats_simclr, k_folds=opt.k_folds, lr=opt.lr,
         num_epochs=opt.num_epochs, batch_size=opt.batch_size
     )
     wandb.log({"avg_prec": avg_prec})
