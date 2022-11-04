@@ -24,6 +24,7 @@ from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from self_supervised.constants import CHECKPOINT_PATH, DEVICE
 from self_supervised.model import SimCLR
 from self_supervised.evaluation import print_classification_report, plot_confusion_matrix
+from data_utils.utils import get_imbalanced_sampler
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
@@ -105,8 +106,18 @@ def prepare_data_features(model, dataset, device=DEVICE):
     return data.TensorDataset(feats, labels), batch_images
 
 
+class Logistic_Reg_model(torch.nn.Module):
+    def __init__(self, no_input_features):
+        super(Logistic_Reg_model, self).__init__()
+        self.layer1 = torch.nn.Linear(no_input_features, 32)
+        self.layer2 = torch.nn.Linear(32, 1)
+    def forward(self, x):
+        y_predicted = self.layer1(x)
+        y_predicted = self.layer2(y_predicted)
+        return y_predicted
+
 def perform_linear_eval(
-    train_img_loader, test_img_loader, simclr_model
+    train_feats_simclr, test_feats_simclr, number_of_epochs=100, lr=1e-2, weight_decay=1e-3
 ):
     """_summary_
 
@@ -121,27 +132,32 @@ def perform_linear_eval(
     Note: train_img_loader and test_img_loader can either be dataloaders or can also be a dataset object.
 
     """
-    # Extract features
-    train_feats_simclr, _ = prepare_data_features(simclr_model, train_img_loader)
-    test_feats_simclr, _ = prepare_data_features(simclr_model, test_img_loader)
-
-    train_feats, train_labels, test_feats, test_labels = (
-        train_feats_simclr.tensors[0].numpy(), train_feats_simclr.tensors[1].numpy(),
+    test_feats, test_labels = (
         test_feats_simclr.tensors[0].numpy(), test_feats_simclr.tensors[1].numpy()
     )
 
-    # Preprocess features.    
-    train_feats = StandardScaler().fit_transform(train_feats)
-    test_feats = StandardScaler().fit_transform(test_feats)
+    imbalanced_sampler = get_imbalanced_sampler(train_feats_simclr)
+    train_loader = torch.utils.data.DataLoader(train_feats_simclr, batch_size=16, sampler=imbalanced_sampler)
+    # test_loader = torch.utils.data.DataLoader(test_feats_simclr, batch_size=16)
 
-    clf = LogisticRegression(
-        random_state=0, solver='liblinear', class_weight='balanced'
-    ).fit(train_feats, train_labels)
+    model = Logistic_Reg_model(512)
+    criterion = torch.nn.BCEWithLogitsLoss()
+    optimizer = torch.optim.AdamW(model.parameters(),lr=lr, weight_decay=weight_decay)
+    for epoch in range(number_of_epochs):
+        for x, y in train_loader:
+            y_prediction = model(x)
+            loss = criterion(y_prediction.float().squeeze(), y.float().squeeze())
+            loss.backward()
+            optimizer.step()
+            optimizer.zero_grad()
+        if (epoch + 1) % 10 == 0:
+            print('epoch:', epoch + 1, ', loss = ', loss.item())
 
-    pred_labels = clf.predict(test_feats)
-    prediction = clf.predict_proba(test_feats)[:, 1]  # Prediction probability of class = 1.
+    with torch.no_grad():
+        y_pred = torch.sigmoid(model(test_feats))
+        y_pred_class = y_pred.round()
 
-    print_classification_report(test_labels, pred_labels)
-    plot_confusion_matrix(test_labels, pred_labels)
+    print_classification_report(test_labels, y_pred_class)
+    plot_confusion_matrix(test_labels, y_pred_class)
 
-    return pred_labels, prediction, test_labels
+    return y_pred_class, y_pred, test_labels

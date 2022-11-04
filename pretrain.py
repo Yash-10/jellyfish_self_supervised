@@ -92,11 +92,6 @@ if __name__ == "__main__":
     parser.add_argument('--max_epochs', type=int, default=300, help='no. of pretraining epochs')
     parser.add_argument('--model_save_path', type=str, default='simclr_pretrained_model.pth', help='path to save the pretrained model')
     parser.add_argument('--train_dataset_frac', type=float, default=1., help='fraction of dataset to use for pre-training (it performs stratified splitting to preseve class ratio)')
-    parser.add_argument('--to_linear_eval', type=bool, default=False, help='Whether to perform linear evaluation after pre-training')
-    parser.add_argument('--to_fine_tune', type=bool, default=False, help='Whether to fine-tune after pre-training')
-    parser.add_argument('--logistic_lr', type=float, default=1e-3, help='Learning rate for logistic regression training on features. Only used if to_linear_eval=True')
-    parser.add_argument('--logistic_weight_decay', type=float, default=1e-3, help='Weight decay for logistic regression training on features. Only used if to_linear_eval=True')
-    parser.add_argument('--logistic_batch_size', type=int, default=32, help='Batch size for logistic regression training on features. Only used if to_linear_eval=True')
     parser.add_argument('--wandb_projectname', type=str, default='my-wandb-project', help='project name for wandb logging')
 
     opt = parser.parse_args()
@@ -153,23 +148,3 @@ if __name__ == "__main__":
     torch.save(test_feats_simclr, 'test_feats_simclr.pt')
     torch.save(train_batch_images, 'train_batch_images.pt')
     torch.save(test_batch_images, 'test_batch_images.pt')
-
-    if opt.to_linear_eval:
-        # Load pre-trained model to use as a fixed feature extractor.
-        simclr_model = SimCLR(
-            hidden_dim=opt.hidden_dim, lr=opt.lr, temperature=opt.temperature,
-            weight_decay=opt.weight_decay, max_epochs=opt.max_epochs
-        )
-        simclr_model.load_state_dict(torch.load(opt.model_save_path))
-        simclr_model.eval()  # Set it to eval mode.
-
-        pred_labels, prediction, test_labels = perform_linear_eval(
-            train_img_data, test_img_data, simclr_model
-        )
-        print(f'Final linear evaluation results:')
-        print('Classification report:')
-        print_classification_report(test_labels, pred_labels)
-        print('Confusion matrix')
-        plot_confusion_matrix(test_labels, pred_labels)
-    elif opt.to_fine_tune:
-        pass  # TODO: Add code...

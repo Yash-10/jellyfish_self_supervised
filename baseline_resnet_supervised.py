@@ -31,7 +31,8 @@ import os
 import torch
 
 import torchvision.datasets as datasets
-from torch.utils.data import WeightedRandomSampler
+
+from data_utils.utils import get_imbalanced_sampler
 
 from sklearn.utils.class_weight import compute_class_weight
 
@@ -210,20 +211,6 @@ def train_baseline_supervised(
 
     return resnet_model, trainer, result
 
-
-def get_imbalanced_sampler(dataset):
-    dataset_indices = [d[1] for d in dataset.samples]
-    # dataset_indices = dataset.indices
-    y = [dataset.targets[i] for i in dataset_indices]
-    class_sample_count = np.array(
-        [len(np.where(y == t)[0]) for t in np.unique(y)])
-
-    weight = 1. / class_sample_count
-    samples_weight = np.array([weight[t] for t in y])
-    samples_weight = torch.from_numpy(samples_weight)
-    sampler = WeightedRandomSampler(samples_weight.type('torch.DoubleTensor'), len(samples_weight))
-
-    return sampler
 
 
 if __name__ == "__main__":
