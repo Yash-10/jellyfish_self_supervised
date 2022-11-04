@@ -14,7 +14,7 @@ from self_supervised.constants import CHECKPOINT_PATH, NUM_WORKERS
 from self_supervised.evaluation import precisionRecallFscoreSupport
 
 
-def kfold_cv(train_feats_simclr, k_folds=3, lr=1e-2, weight_decay=1e-3, num_epochs=100, batch_size=1):
+def kfold_cv(train_feats_simclr, k_folds=3, lr=1e-2, num_epochs=100, batch_size=1):
     # Set fixed random number seed
     torch.manual_seed(42)
 
@@ -43,7 +43,7 @@ def kfold_cv(train_feats_simclr, k_folds=3, lr=1e-2, weight_decay=1e-3, num_epoc
         xx = torch.utils.data.TensorDataset(train_feats_simclr.tensors[0][train_ids], train_feats_simclr.tensors[1][train_ids])
         yy = torch.utils.data.TensorDataset(train_feats_simclr.tensors[0][test_ids], train_feats_simclr.tensors[1][test_ids])
         y_pred_class, _, test_labels = perform_linear_eval(
-            xx, yy, number_of_epochs=num_epochs, lr=lr, weight_decay=weight_decay
+            xx, yy, number_of_epochs=num_epochs, lr=lr
         )
 
         precision, recall, f1_score, _ = precisionRecallFscoreSupport(test_labels, y_pred_class)
