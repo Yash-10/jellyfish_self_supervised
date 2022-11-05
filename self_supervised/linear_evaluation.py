@@ -129,7 +129,7 @@ class Logistic_Reg_model(torch.nn.Module):
         return y_predicted
 
 def perform_linear_eval(
-    train_feats_simclr, test_feats_simclr, number_of_epochs=100, lr=1e-2
+    train_feats_simclr, test_feats_simclr, number_of_epochs=100, lr=1e-2, batch_size=1
 ):
     """_summary_
 
@@ -149,7 +149,7 @@ def perform_linear_eval(
     )
 
     imbalanced_sampler = get_imbalanced_sampler(train_feats_simclr)
-    train_loader = torch.utils.data.DataLoader(train_feats_simclr, batch_size=16, sampler=imbalanced_sampler)
+    train_loader = torch.utils.data.DataLoader(train_feats_simclr, batch_size=batch_size, sampler=imbalanced_sampler)
     # test_loader = torch.utils.data.DataLoader(test_feats_simclr, batch_size=16)
 
     model = Logistic_Reg_model(512)

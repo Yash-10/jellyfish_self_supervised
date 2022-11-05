@@ -43,7 +43,7 @@ def kfold_cv(train_feats_simclr, k_folds=3, lr=1e-2, num_epochs=100, batch_size=
         xx = torch.utils.data.TensorDataset(train_feats_simclr.tensors[0][train_ids], train_feats_simclr.tensors[1][train_ids])
         yy = torch.utils.data.TensorDataset(train_feats_simclr.tensors[0][test_ids], train_feats_simclr.tensors[1][test_ids])
         y_pred_class, _, test_labels = perform_linear_eval(
-            xx, yy, number_of_epochs=num_epochs, lr=lr
+            xx, yy, number_of_epochs=num_epochs, lr=lr, batch_size=batch_size
         )
 
         precision, recall, f1_score, _ = precisionRecallFscoreSupport(test_labels, y_pred_class)
@@ -87,7 +87,7 @@ if __name__ == "__main__":
     print_options(opt)
 
     # Create a wandb logger
-    wandb_logger = WandbLogger(name=f'{opt.k_folds}-{opt.batch_size}-{opt.lr}-{opt.num_epochs}', project=opt.wandb_projectname)  # For each distinct set of hyperparameters, use a different `name`.
+    wandb_logger = WandbLogger(name=f'(redo)-{opt.k_folds}-{opt.batch_size}-{opt.lr}-{opt.num_epochs}', project=opt.wandb_projectname)  # For each distinct set of hyperparameters, use a different `name`.
 
     train_feats_simclr = torch.load(opt.train_feats_path)
     avg_prec, avg_recall, avg_f1_score = kfold_cv(
