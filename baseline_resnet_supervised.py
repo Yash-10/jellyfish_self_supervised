@@ -312,7 +312,7 @@ if __name__ == "__main__":
                 predicted_labels.append(preds_labels.item())
                 prediction.append(preds.cpu().numpy().squeeze())
                 sample_fname, _ = test_loader.dataset.samples[i]
-                f.write("{}, {}\n".format(sample_fname, preds_labels.item()))
+                f.write("{}, {}\n".format(sample_fname, labels.item()))
 
         f.close()
 
