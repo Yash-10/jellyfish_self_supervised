@@ -232,6 +232,8 @@ if __name__ == "__main__":
     # Print options
     print_options(opt)
 
+    torch.manual_seed(42)
+
     if opt.use_wandb:
         import wandb
         # Create a wandb logger
