@@ -2,6 +2,7 @@
 import argparse
 import wandb
 
+import numpy as np
 import torch
 from pytorch_lightning.loggers import WandbLogger
 from pretrain import print_options
@@ -12,6 +13,7 @@ from torch.utils import data
 from self_supervised.linear_evaluation import perform_linear_eval
 from self_supervised.constants import CHECKPOINT_PATH, NUM_WORKERS
 from self_supervised.evaluation import precisionRecallFscoreSupport
+from sklearn.metrics import log_loss
 
 
 def kfold_cv(train_feats_simclr, k_folds=3, lr=1e-2, num_epochs=100, batch_size=1):
@@ -45,35 +47,40 @@ def kfold_cv(train_feats_simclr, k_folds=3, lr=1e-2, num_epochs=100, batch_size=
         y_pred_class, y_pred, test_labels = perform_linear_eval(
             xx, yy, number_of_epochs=num_epochs, lr=lr, batch_size=batch_size
         )
-        acc = (y_pred.argmax(dim=-1) == test_labels).float().mean()
+        acc = (y_pred.argmax(dim=-1) == test_labels).float().mean().item()
+        logloss = log_loss(test_labels, y_pred)
 
         precision, recall, f1_score, _ = precisionRecallFscoreSupport(test_labels, y_pred_class)
 
         # Print result on this fold.
-        print(f'Result on fold {fold}: {precision, recall, f1_score, acc}')
+        print(f'Result on fold {fold}: {precision, recall, f1_score, acc, logloss}')
         print('--------------------------------')
-        results[fold] = [precision, recall, f1_score, acc]
+        results[fold] = [precision, recall, f1_score, acc, logloss]
 
 
     # Print fold results
     print(f'K-FOLD CROSS VALIDATION RESULTS FOR {k_folds} FOLDS')
     print('--------------------------------')
-    sum_prec, sum_recall, sum_f1_score, sum_acc = 0.0, 0.0, 0.0, 0.0
+    sum_prec, sum_recall, sum_f1_score, sum_acc, sum_logloss = 0.0, 0.0, 0.0, 0.0, 0.0
     for key, value in results.items():
         print(f'Fold {key}: {value}')
         sum_prec += value[0]
         sum_recall += value[1]
         sum_f1_score += value[2]
         sum_acc += value[3]
+        if not np.isnan(value[4]):
+            sum_logloss += value[4]
 
     assert len(results.items()) == k_folds
     avg_prec = sum_prec / k_folds
     avg_recall = sum_recall / k_folds
     avg_f1_score = sum_f1_score / k_folds
     avg_acc = sum_acc / k_folds
-    print(f'Average test metrics (prec, recall, f1-score, acc) over all folds: {avg_prec, avg_recall, avg_f1_score, avg_acc}')
+    avg_logloss = sum_logloss / k_folds
+    print(f'Average test metrics (prec, recall, f1-score, acc) over all folds: {avg_prec, avg_recall, avg_f1_score, avg_acc, avg_logloss}')
 
-    return avg_prec, avg_recall, avg_f1_score, avg_acc
+    return avg_prec, avg_recall, avg_f1_score, avg_acc, avg_logloss
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='sets linear evaluation hyperparameters for cross-validation')
@@ -93,7 +100,7 @@ if __name__ == "__main__":
     wandb_logger = WandbLogger(name=f'(redo)-{opt.k_folds}-{opt.batch_size}-{opt.lr}-{opt.num_epochs}', project=opt.wandb_projectname)  # For each distinct set of hyperparameters, use a different `name`.
 
     train_feats_simclr = torch.load(opt.train_feats_path)
-    avg_prec, avg_recall, avg_f1_score, avg_acc = kfold_cv(
+    avg_prec, avg_recall, avg_f1_score, avg_acc, avg_loggloss = kfold_cv(
         train_feats_simclr, k_folds=opt.k_folds, lr=opt.lr,
         num_epochs=opt.num_epochs, batch_size=opt.batch_size
     )
@@ -101,3 +108,4 @@ if __name__ == "__main__":
     wandb.log({"avg_recall": avg_recall})
     wandb.log({"avg_f1_score": avg_f1_score})
     wandb.log({"avg_acc": avg_acc})
+    wandb.log({"avg_loggloss": avg_loggloss})
