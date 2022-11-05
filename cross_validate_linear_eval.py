@@ -42,35 +42,38 @@ def kfold_cv(train_feats_simclr, k_folds=3, lr=1e-2, num_epochs=100, batch_size=
 
         xx = torch.utils.data.TensorDataset(train_feats_simclr.tensors[0][train_ids], train_feats_simclr.tensors[1][train_ids])
         yy = torch.utils.data.TensorDataset(train_feats_simclr.tensors[0][test_ids], train_feats_simclr.tensors[1][test_ids])
-        y_pred_class, _, test_labels = perform_linear_eval(
+        y_pred_class, y_pred, test_labels = perform_linear_eval(
             xx, yy, number_of_epochs=num_epochs, lr=lr, batch_size=batch_size
         )
+        acc = (y_pred.argmax(dim=-1) == test_labels).float().mean()
 
         precision, recall, f1_score, _ = precisionRecallFscoreSupport(test_labels, y_pred_class)
 
         # Print result on this fold.
-        print(f'Result on fold {fold}: {precision, recall, f1_score}')
+        print(f'Result on fold {fold}: {precision, recall, f1_score, acc}')
         print('--------------------------------')
-        results[fold] = [precision, recall, f1_score]
+        results[fold] = [precision, recall, f1_score, acc]
 
 
     # Print fold results
     print(f'K-FOLD CROSS VALIDATION RESULTS FOR {k_folds} FOLDS')
     print('--------------------------------')
-    sum_prec, sum_recall, sum_f1_score = 0.0, 0.0, 0.0
+    sum_prec, sum_recall, sum_f1_score, sum_acc = 0.0, 0.0, 0.0, 0.0
     for key, value in results.items():
         print(f'Fold {key}: {value}')
         sum_prec += value[0]
         sum_recall += value[1]
         sum_f1_score += value[2]
+        sum_acc += value[3]
 
     assert len(results.items()) == k_folds
     avg_prec = sum_prec / k_folds
     avg_recall = sum_recall / k_folds
     avg_f1_score = sum_f1_score / k_folds
-    print(f'Average test metrics (prec, recall, f1-score) over all folds: {avg_prec, avg_recall, avg_f1_score}')
+    avg_acc = sum_acc / k_folds
+    print(f'Average test metrics (prec, recall, f1-score, acc) over all folds: {avg_prec, avg_recall, avg_f1_score, avg_acc}')
 
-    return avg_prec, avg_recall, avg_f1_score
+    return avg_prec, avg_recall, avg_f1_score, avg_acc
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='sets linear evaluation hyperparameters for cross-validation')
@@ -90,10 +93,11 @@ if __name__ == "__main__":
     wandb_logger = WandbLogger(name=f'(redo)-{opt.k_folds}-{opt.batch_size}-{opt.lr}-{opt.num_epochs}', project=opt.wandb_projectname)  # For each distinct set of hyperparameters, use a different `name`.
 
     train_feats_simclr = torch.load(opt.train_feats_path)
-    avg_prec, avg_recall, avg_f1_score = kfold_cv(
+    avg_prec, avg_recall, avg_f1_score, avg_acc = kfold_cv(
         train_feats_simclr, k_folds=opt.k_folds, lr=opt.lr,
         num_epochs=opt.num_epochs, batch_size=opt.batch_size
     )
     wandb.log({"avg_prec": avg_prec})
     wandb.log({"avg_recall": avg_recall})
     wandb.log({"avg_f1_score": avg_f1_score})
+    wandb.log({"avg_acc": avg_acc})
