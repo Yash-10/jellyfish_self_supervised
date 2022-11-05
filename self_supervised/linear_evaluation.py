@@ -155,6 +155,10 @@ def perform_linear_eval(
     model = Logistic_Reg_model(512)
     criterion = torch.nn.BCEWithLogitsLoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=lr)
+    lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer,
+                                                      milestones=[int(number_of_epochs*0.7),
+                                                                  int(number_of_epochs*0.9)],
+                                                      gamma=0.1)
     for epoch in range(number_of_epochs):
         for x, y in train_loader:
             y_prediction = model(x)
@@ -164,6 +168,8 @@ def perform_linear_eval(
             optimizer.zero_grad()
         if (epoch + 1) % 10 == 0:
             print('epoch:', epoch + 1, ', loss = ', loss.item())
+
+        lr_scheduler.step()
 
     with torch.no_grad():
         y_pred = torch.sigmoid(model(test_feats))

@@ -77,7 +77,7 @@ def kfold_cv(train_feats_simclr, k_folds=3, lr=1e-2, num_epochs=100, batch_size=
     avg_f1_score = sum_f1_score / k_folds
     avg_acc = sum_acc / k_folds
     avg_logloss = sum_logloss / k_folds
-    print(f'Average test metrics (prec, recall, f1-score, acc) over all folds: {avg_prec, avg_recall, avg_f1_score, avg_acc, avg_logloss}')
+    print(f'Average test metrics (prec, recall, f1-score, acc, logloss) over all folds: {avg_prec, avg_recall, avg_f1_score, avg_acc, avg_logloss}')
 
     return avg_prec, avg_recall, avg_f1_score, avg_acc, avg_logloss
 
