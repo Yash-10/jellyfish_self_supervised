@@ -97,7 +97,7 @@ if __name__ == "__main__":
     print_options(opt)
 
     # Create a wandb logger
-    wandb_logger = WandbLogger(name=f'(hydra)-(redo)-{opt.k_folds}-{opt.batch_size}-{opt.lr}-{opt.num_epochs}', project=opt.wandb_projectname)  # For each distinct set of hyperparameters, use a different `name`.
+    wandb_logger = WandbLogger(name=f'(antlia)-(redo)-{opt.k_folds}-{opt.batch_size}-{opt.lr}-{opt.num_epochs}', project=opt.wandb_projectname)  # For each distinct set of hyperparameters, use a different `name`.
 
     train_feats_simclr = torch.load(opt.train_feats_path)
     avg_prec, avg_recall, avg_f1_score, avg_acc, avg_loggloss = kfold_cv(
