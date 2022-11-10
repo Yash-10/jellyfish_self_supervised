@@ -237,7 +237,7 @@ if __name__ == "__main__":
     if opt.use_wandb:
         import wandb
         # Create a wandb logger
-        wandb_logger = WandbLogger(name=f'supervised_resnet-{opt.batch_size}-{opt.lr}-{opt.weight_decay}-{opt.max_epochs}', project=opt.wandb_projectname)  # For each distinct set of hyperparameters, use a different `name`.
+        wandb_logger = WandbLogger(name=f'(hydra)-supervised_resnet-{opt.batch_size}-{opt.lr}-{opt.weight_decay}-{opt.max_epochs}', project=opt.wandb_projectname)  # For each distinct set of hyperparameters, use a different `name`.
 
     print('Calculating mean and standard deviation across training dataset...')
     dataset = DummyNpyFolder(opt.train_dir_path, transform=None)  # train
