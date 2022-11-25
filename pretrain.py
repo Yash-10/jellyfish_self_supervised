@@ -127,11 +127,12 @@ if __name__ == "__main__":
 
     # We re-create the datasets since while extracting the features, we do not need contrastive transforms, but only normalization.
     # Calculate mean and std of each channel across training dataset.
-    print('Pretraining finished. Starting to extract features...')
+    print('Pretraining finished. Starting to prepare for extracting features...')
     print('Calculating mean and standard deviation across training dataset...')
     dataset = DummyNpyFolder(opt.train_dir_path, transform=None)
     loader = data.DataLoader(dataset=dataset, batch_size=1, shuffle=True)
     mean, std = get_mean_std(loader)
+    print(mean, std)
 
     img_transforms = transforms.Compose([
         transforms.Normalize(mean, std)
@@ -141,6 +142,7 @@ if __name__ == "__main__":
     test_img_data = NpyFolder(opt.test_dir_path, transform=img_transforms)  # test
 
     # Extract features
+    print('Extracting features')
     train_feats_simclr, train_batch_images = prepare_data_features(simclr_model, train_img_data)
     test_feats_simclr, test_batch_images = prepare_data_features(simclr_model, test_img_data)
 
