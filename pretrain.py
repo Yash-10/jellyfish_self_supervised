@@ -151,7 +151,7 @@ if __name__ == "__main__":
     torch.save(test_batch_images, 'test_batch_images.pt')
 
     ##################### Below code performs linear evaluation -- Comment it if you do not want to perform linear evaluation and only pretraining #####################
-    num_epochs, lr, batch_size = 100, 1e-3, 32
+    num_epochs, lr, batch_size = 350, 5e-3, 16  # These are the optimal values obtained during hyperparameter tuning of linear evaluation.
     xx = torch.utils.data.TensorDataset(train_feats_simclr.tensors[0], train_feats_simclr.tensors[1])
     yy = torch.utils.data.TensorDataset(test_feats_simclr.tensors[0], test_feats_simclr.tensors[1])
     y_pred_class, y_pred, test_labels = perform_linear_eval(
