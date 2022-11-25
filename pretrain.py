@@ -10,6 +10,7 @@ from tqdm.notebook import tqdm
 
 from torch.utils import data
 
+import wandb
 import torch
 from torchvision import transforms
 import pytorch_lightning as pl
@@ -148,3 +149,19 @@ if __name__ == "__main__":
     torch.save(test_feats_simclr, 'test_feats_simclr.pt')
     torch.save(train_batch_images, 'train_batch_images.pt')
     torch.save(test_batch_images, 'test_batch_images.pt')
+
+    ##################### Below code performs linear evaluation -- Comment it if you do not want to perform linear evaluation and only pretraining #####################
+    num_epochs, lr, batch_size = 100, 1e-3, 32
+    xx = torch.utils.data.TensorDataset(train_feats_simclr.tensors[0], train_feats_simclr.tensors[1])
+    yy = torch.utils.data.TensorDataset(test_feats_simclr.tensors[0], test_feats_simclr.tensors[1])
+    y_pred_class, y_pred, test_labels = perform_linear_eval(
+        xx, yy, number_of_epochs=num_epochs, lr=lr, batch_size=batch_size
+    )
+    acc = (y_pred.argmax(dim=-1) == test_labels).float().mean().item()
+    logloss = log_loss(test_labels, y_pred)
+
+    precision, recall, f1_score, _ = precisionRecallFscoreSupport(test_labels, y_pred_class)
+
+    wandb.log({"precision": precision})
+    wandb.log({"recall": recall})
+    wandb.log({"f1_score": f1_score})
