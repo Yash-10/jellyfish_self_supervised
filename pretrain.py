@@ -132,7 +132,6 @@ if __name__ == "__main__":
     dataset = DummyNpyFolder(opt.train_dir_path, transform=None)
     loader = data.DataLoader(dataset=dataset, batch_size=1, shuffle=True)
     mean, std = get_mean_std(loader)
-    print(mean, std)
 
     img_transforms = transforms.Compose([
         transforms.Normalize(mean, std)
