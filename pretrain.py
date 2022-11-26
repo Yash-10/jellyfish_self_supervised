@@ -17,6 +17,8 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 
+from sklearn.metrics import log_loss
+
 from self_supervised.model import SimCLR
 from data_utils.transformations import ContrastiveTransformations
 from data_utils.dataset_folder import NpyFolder
@@ -25,7 +27,7 @@ from self_supervised.constants import NUM_WORKERS, CHECKPOINT_PATH, DEVICE
 from data_utils.dataset_folder import prepare_data_for_pretraining
 
 from self_supervised.linear_evaluation import perform_linear_eval, prepare_data_features
-from self_supervised.evaluation import print_classification_report, plot_confusion_matrix
+from self_supervised.evaluation import print_classification_report, plot_confusion_matrix, precisionRecallFscoreSupport
 
 
 # Setting the seed
@@ -104,7 +106,7 @@ if __name__ == "__main__":
         raise ValueError("No train directory supplied!")
 
     # Create a wandb logger
-    wandb_logger = WandbLogger(name=f'(no_center_crop_data-aug-ablation)-pretrain-simclr-{opt.lr}-{opt.temperature}-{opt.weight_decay}-{opt.max_epochs}', project=opt.wandb_projectname)
+    wandb_logger = WandbLogger(name=f'(no_aug_data-aug-ablation)-pretrain-simclr-{opt.lr}-{opt.temperature}-{opt.weight_decay}-{opt.max_epochs}', project=opt.wandb_projectname)
 
     train_data, test_data = prepare_data_for_pretraining(opt.train_dir_path, opt.test_dir_path, mode='pretraining')
     train_loader = torch.utils.data.DataLoader(
@@ -162,6 +164,7 @@ if __name__ == "__main__":
     logloss = log_loss(test_labels, y_pred)
 
     precision, recall, f1_score, _ = precisionRecallFscoreSupport(test_labels, y_pred_class)
+    print(f'precision, recall, f1_score: {precision}, {recall}, {f1_score}')
 
     wandb.log({"precision": precision})
     wandb.log({"recall": recall})
