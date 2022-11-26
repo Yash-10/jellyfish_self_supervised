@@ -104,7 +104,7 @@ if __name__ == "__main__":
         raise ValueError("No train directory supplied!")
 
     # Create a wandb logger
-    wandb_logger = WandbLogger(name=f'(data-aug-ablation)-pretrain-simclr-{opt.lr}-{opt.temperature}-{opt.weight_decay}-{opt.max_epochs}', project=opt.wandb_projectname)
+    wandb_logger = WandbLogger(name=f'(no_center_crop_data-aug-ablation)-pretrain-simclr-{opt.lr}-{opt.temperature}-{opt.weight_decay}-{opt.max_epochs}', project=opt.wandb_projectname)
 
     train_data, test_data = prepare_data_for_pretraining(opt.train_dir_path, opt.test_dir_path, mode='pretraining')
     train_loader = torch.utils.data.DataLoader(
