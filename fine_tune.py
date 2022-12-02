@@ -58,6 +58,7 @@ if __name__ == "__main__":
     parser.add_argument('--fine_tune_logistic_lr', type=float, default=5e-3, help='learning rate')
     parser.add_argument('--fine_tune_logistic_batch_size', type=float, default=16, help='logistic batch size')
     parser.add_argument('--train_dir_path', type=str, default=None, help='Path to fine-tuning training directory (must end as "train/")')
+    parser.add_argument('--test_dir_path', type=str, default=None, help='Path to fine-tuning training directory (must end as "test/")')
     parser.add_argument('--fine_tune_batch_size', type=int, default=128, help='batch size to use')
     parser.add_argument('--fine_tune_hidden_dim', type=int, default=128, help='hidden dimension for the MLP projection head')
     parser.add_argument('--fine_tune_lr', type=float, default=5e-4, help='learning rate')
