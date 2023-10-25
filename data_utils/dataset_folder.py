@@ -68,21 +68,21 @@ def prepare_data_for_pretraining(train_dir_path, test_dir_path=None, mode='pretr
                         # ], p=0.5),
                         transforms.CenterCrop(size=200),
                         transforms.RandomResizedCrop(size=72),
-#                         transforms.RandomHorizontalFlip(),
-#                         transforms.RandomVerticalFlip(),
+                        transforms.RandomHorizontalFlip(),
+                        transforms.RandomVerticalFlip(),
                         transforms.RandomApply([
                             CustomColorJitter()
                         ], p=0.8
                         ),
                         # CustomRandGrayscale(p=0.2),
                         # transforms.RandomPerspective(p=0.3),
-#                         transforms.RandomRotation(degrees=(0, 360)),
-#                         transforms.RandomApply([
-#                             transforms.ColorJitter(brightness=0.5,
-#                                                    contrast=0.5,
-#                                                    saturation=0.5,
-#                                                    hue=0.1)
-#                         ], p=0.8),
+                        transforms.RandomRotation(degrees=(0, 360)),
+                        # transforms.RandomApply([
+                        #     transforms.ColorJitter(brightness=0.5,
+                        #                            contrast=0.5,
+                        #                            saturation=0.5,
+                        #                            hue=0.1)
+                        # ], p=0.8),
                         transforms.RandomApply([
                             transforms.GaussianBlur(kernel_size=9)  # This is an important augmentation -- else results were considerably worse!
                         ], p=0.5

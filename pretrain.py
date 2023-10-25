@@ -96,7 +96,7 @@ if __name__ == "__main__":
     parser.add_argument('--weight_decay', type=float, default=1e-4, help='weight decay')
     parser.add_argument('--max_epochs', type=int, default=300, help='no. of pretraining epochs')
     parser.add_argument('--model_save_path', type=str, default='simclr_pretrained_model.pth', help='path to save the pretrained model')
-    parser.add_argument('--train_dataset_frac', type=float, default=1., help='fraction of dataset to use for pre-training (it performs stratified splitting to preseve class ratio)')
+    # parser.add_argument('--train_dataset_frac', type=float, default=1., help='fraction of dataset to use for pre-training (it performs stratified splitting to preseve class ratio)')
     parser.add_argument('--wandb_projectname', type=str, default='my-wandb-project', help='project name for wandb logging')
 
     opt = parser.parse_args()
