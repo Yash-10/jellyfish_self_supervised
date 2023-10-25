@@ -20,6 +20,8 @@ The Colab notebook provides code for how to setup data for training the self-sup
 - `baseline_resnet_supervised.py` contains code for training the supervised CNN model.
 - `cross_validate.py` contains code for the K-fold cross validation for the self-supervised approach, and `cross_validate_linear_eval.py` contains code for the K-fold cross validation of the linear evaluation protocol (i.e., a linear classifier trained on the self-supervised representations).
 
+**Note**: Procedure for estimating the star formation rates and associated codes are present in the following GitHub repository: https://github.com/amanda-lopes/Halpha-SPLUS-Jelly
+
 ## References
 
 The `SimCLR` code in this repository is inspired from the SimCLR tutorial in the UvA DL Notebooks: [Tutorial 17: Self-Supervised Contrastive Learning with SimCLR](https://uvadlc-notebooks.readthedocs.io/en/latest/tutorial_notebooks/tutorial17/SimCLR.html)
