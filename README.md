@@ -2,7 +2,7 @@
 
 [![Notebook example](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1I7lIh-vaYhlifvULbzfU3enas008jxre?usp=sharing)
 
-**Motivation**
+**Motivation**\
 Jellyfish galaxies are galaxies undergoing transformation and is characterized by extended tails of gas that has been removed from the galaxy due to a phenomenon called ram pressure stripping. They are rare to find and possess peculiar morphologies. The traditional approach of detecting jellyfish galaxies is visual inspection. However, visual analysis is subjective and is affected by human biases. It is also infeasible to manually vet through large astronomical datasets to detect these rare types of galaxies. This work aims to assist visual classification using self-supervised learning to improve the quality of the visual classification. Such an approach alleviates human biases and is scalable to large datasets.
 
 ## Data
