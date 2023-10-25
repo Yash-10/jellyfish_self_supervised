@@ -1,3 +1,5 @@
+# Author: Yash Gondhalekar
+
 import wandb
 import os
 import argparse

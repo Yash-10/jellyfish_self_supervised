@@ -1,3 +1,5 @@
+# Author: Yash Gondhalekar
+
 import os
 from copy import deepcopy
 from turtle import window_height

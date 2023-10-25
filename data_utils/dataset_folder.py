@@ -1,3 +1,5 @@
+# Author: Yash Gondhalekar
+
 ##### Reference: https://stackoverflow.com/a/50260776 #####
 import numpy as np
 from astropy.io import fits

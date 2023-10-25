@@ -1,3 +1,5 @@
+# Author: Yash Gondhalekar
+
 """
 This module calculates the mean and standard deviation of each channel across all images in the training dataset.
 For this, it creates a dummy dataset folder *without any transforms*.
