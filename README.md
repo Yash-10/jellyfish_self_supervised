@@ -1,6 +1,9 @@
-# Jellyfish Self-supervised learning
+# Jellyfish Galaxies:  self-supervised approach for assisting visual identification
 
 [![Notebook example](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1I7lIh-vaYhlifvULbzfU3enas008jxre?usp=sharing)
+
+**Motivation**
+Jellyfish galaxies are galaxies undergoing transformation and is characterized by extended tails of gas that has been removed from the galaxy due to a phenomenon called ram pressure stripping. They are rare to find and possess peculiar morphologies. The traditional approach of detecting jellyfish galaxies is visual inspection. However, visual analysis is subjective and is affected by human biases. It is also infeasible to manually vet through large astronomical datasets to detect these rare types of galaxies. This work aims to assist visual classification using self-supervised learning to improve the quality of the visual classification. Such an approach alleviates human biases and is scalable to large datasets.
 
 ## Data
 
@@ -15,7 +18,7 @@ The Colab notebook provides code for how to setup data for training the self-sup
 - `old_temp_store` contains codes not used in our analysis but were developed at some point in the past. This folder is kept only for storage purposes.
 - `pretrain.py` is the script used to pre-train the self-supervised model.
 - `baseline_resnet_supervised.py` contains code for training the supervised CNN model.
-- `cross_validate.py` contains code for the $K$-fold cross validation for the self-supervised approach, and `cross_validate_linear_eval.py` contains code for the $K$-fold cross validation of the linear evaluation protocol (i.e., a linear classifier trained on the self-supervised representations).
+- `cross_validate.py` contains code for the K-fold cross validation for the self-supervised approach, and `cross_validate_linear_eval.py` contains code for the K-fold cross validation of the linear evaluation protocol (i.e., a linear classifier trained on the self-supervised representations).
 
 ## References
 
