@@ -3,7 +3,6 @@
 [![Notebook example](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1I7lIh-vaYhlifvULbzfU3enas008jxre?usp=sharing)
 
 **Motivation**\
-
 *Jellyfish galaxies* are galaxies undergoing transformation. These galaxies serve as an example of extreme cases of a phenomenon called ram pressure stripping (RPS). This phenomenon causes the removal of the cold gas from the gaseous disks of the galaxies, resulting in extended tails of gas. As a result, these galaxies possess peculiar morphologies and properties that distinguish them from other galaxies. These galaxies are rare to find. The traditional approach to detecting jellyfish galaxies is visual inspection, where visual classifiers look at specific characteristics (gas tail, disturbed morphology, etc). Based on the visual strengths of these features, a JClass is assigned to a galaxy, where a JClass of 0 means no evidence of RPS and a JClass of 5 means the most extreme evidence of RPS.
 
 However, visual analysis is subjective and is affected by human biases. It is also infeasible to manually vet through large astronomical datasets to detect these rare galaxies. This work aims to assist visual classification using self-supervised learning to improve the quality of the visual classification. Specifically, for each visually classified galaxy (yielding a JClass), we assign an equivalent JClass based on self-supervised learning. Our approach alleviates human biases and is scalable to large datasets.
