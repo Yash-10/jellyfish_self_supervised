@@ -9,7 +9,7 @@ However, visual analysis is subjective and is affected by human biases. It is al
 
 ## Data
 
-The data (raw images, processed images, and trained models) can be found [here](https://drive.google.com/drive/folders/1HTWDpad8P7trQN_od8FFc6qIdNJ_AfqQ?usp=sharing).
+The trained models, catalogs, and related files can be found [here](https://drive.google.com/drive/folders/1HTWDpad8P7trQN_od8FFc6qIdNJ_AfqQ?usp=sharing).
 
 ## Repository description
 The Colab notebook provides code for how to set up data for training the self-supervised model, presents an example demonstration of the query by example, how the uncertain visual classification of jellyfish galaxies can be improved using self-supervised learning, Grad-CAM analysis, and trail vector analysis of the galaxies. Some miscellaneous code is also present in the notebook.
